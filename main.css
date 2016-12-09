@@ -1,0 +1,33 @@
+#my-canvas{
+    width:  800px;
+    height: 800px;
+    border: 5px solid black;
+}
+
+table {
+    width: 500px;
+}
+
+th, td {
+    width: 250px;
+    border-bottom: 1px solid #ddd;
+}
+
+button {
+    width: 250px;
+    height: 50px;
+    margin: 0px 25px 0px 25px;
+}
+
+#parent {
+  display: flex;
+}
+
+#side {
+  flex: 1;
+  margin-left: 20px;
+}
+
+/*body{
+    background-color: #000000;
+}*/

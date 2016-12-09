@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>ACO</title>
+    <link rel="stylesheet" href="main.css" />
+</head>
+
+<body>
+    <div id="parent">
+        <canvas id="my-canvas"></canvas>
+        <script src="util.js"></script>
+        <script src="main.js"></script>
+
+        <div id="side">
+            <h2>Statistics</h2>
+            <table>
+                <tr>
+                    <td>
+                        Ants going to food
+                    </td>
+                    <td>
+                        <output id="antsWithoutFood" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Ants going back to nest
+                    </td>
+                    <td>
+                        <output id="antsWithFood" />
+                    </td>
+                </tr>
+            </table>
+
+            <h2>Configuration</h2>
+            <div>
+                <h3>General</h3>
+                <table>
+                    <tr>
+                        <td>
+                            fps
+                        </td>
+                        <td>
+                            <input id="fps" type="range" min="1" max="100" style="width: 170px;" step="1" onchange="changeFps();" />
+                            <output id="fpsNumber" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            max ants per cell
+                        </td>
+                        <td>
+                            <input id="cellSize" type="number" min="1" style="width: 30px;" />
+                        </td>
+                    </tr>
+                </table>
+
+
+                <h3>Ant</h3>
+                <table>
+                    <tr>
+                        <td>
+                            ant population
+                        </td>
+                        <td>
+                            <input id="antPopulation" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                </table>
+
+                <h3>Food</h3>
+                <table>
+                    <tr>
+                        <td>
+                            food Sources
+                        </td>
+                        <td>
+                            <input id="foodSources" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <hr >
+                <button id="btn-start-simulation" onclick="startSimulation()">Start simulation</button>
+                <button id="btn-pause-simulation" onclick="pauseSimulation()" style="display:none;">Pause simulation</button>
+                <button id="btn-resume-simulation" onclick="resumeSimulation()" style="display:none;">Resume simulation</button>
+                <button onclick="restoreDefaultConfig()">Load default configuration</button>
+            </div>
+        </div>
+</body>
+
+</html>
