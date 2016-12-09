@@ -2,7 +2,7 @@
  * //==============================================\\
  * || Project: Ant Colony Optimization             ||
  * || Authors: Eberhard Felix, Dorfeister Daniel,  ||
- * ||          De Rossi Alessandro                 ||
+ * ||          De Rosis Alessandro                 ||
  * || Date:    05.12.2016                          ||
  * \\==============================================//
  */
