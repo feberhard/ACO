@@ -8,9 +8,9 @@
  */
 // start vs-code task: ctrl+shift+b
 // variables
-var fieldWidth = 50;
-var fieldHeight = 50;
-var pixelSize = 10;
+var fieldWidth = 5;
+var fieldHeight = 5;
+var pixelSize = 100;
 var field;
 var randomField;
 var randomNeighbour;
@@ -21,27 +21,40 @@ var default_config = {
     // colors
     groundColor: "#A08556",
     foodColor: "#246D25",
-    antColor: "#000000",
+    antToFoodColor: "#000000",
+    antToNestColor: "#CCCC00",
     nestColor: "#FF0000",
     // ant
-    antPopulation: 10,
+    antPopulation: 1,
+    initialPheremoneStrength: 200,
     // food
     foodSources: 1,
+    // nest
+    nestSources: 1,
+    // cell
+    maxPheromone: 200,
     // general
     fps: 100,
     maxCellSize: 1,
 };
 var config = default_config;
 class Cell {
-    constructor(col, row, food = false) {
+    constructor(col, row, food = false, nest = false) {
         this.col = col;
         this.row = row;
         this.food = food;
+        this.nest = nest;
+        this.toNestPheromone = 0;
+        this.toFoodPheromone = 0;
     }
     get color() {
+        if (this.nest) {
+            return config.nestColor;
+        }
         var antCount = this.ant != null ? 1 : 0;
         var foodCount = this.food ? 1 : 0;
-        return colorArray[antCount][foodCount];
+        var antDirection = this.ant != null ? this.ant.direction : 0;
+        return colorArray[antCount][foodCount][antDirection];
     }
     canAddAnt() {
         return this.ant == null;
@@ -56,13 +69,36 @@ class Cell {
     addFood() {
         this.food = true;
     }
+    setNest() {
+        this.nest = true;
+    }
     setMoved(moved) {
         if (this.ant != null) {
             this.ant.moved = moved;
         }
     }
+    decreasePheromone() {
+        this.toFoodPheromone = Math.max(this.toFoodPheromone - 1, 0);
+        this.toNestPheromone = Math.max(this.toNestPheromone - 1, 0);
+    }
+    // public addPheromone(pheromone: number) {
+    //     this.pheromone = Math.min(this.pheromone + pheromone, config.maxPheromone);
+    // }
+    addtoNestPheromone(pheromone) {
+        this.toNestPheromone = Math.min(this.toNestPheromone + pheromone, config.maxPheromone);
+    }
+    addToFoodPheromone(pheromone) {
+        this.toFoodPheromone = Math.min(this.toFoodPheromone + pheromone, config.maxPheromone);
+    }
 }
 class Ant {
+    constructor(pheromoneStrength) {
+        this.direction = 0 /* toFood */;
+        this.pheromoneStrength = pheromoneStrength;
+    }
+    decreasePheromoneStrength() {
+        this.pheromoneStrength = Math.max(this.pheromoneStrength - 2, 0);
+    }
 }
 function initColors() {
     //               ant
@@ -78,18 +114,22 @@ function initColors() {
         colorArray[i] = new Array(maxFood + 1);
         var antPercent = i / maxAnts;
         for (var j = 0; j < maxFood + 1; j++) {
+            colorArray[i][j] = new Array(2);
             var foodPercent = j / maxFood;
             // antColor * antPercent blended with foodColor * foodPercent
             // e.g. 
             // 1) 1 ant, 0 food (max 1 ant per cell) => 100% antColor
             // 2) 1 ant, 1 food (max 4 ant per cell, max 2 food per cell) => 25% antColor blended with 50% foodColor
-            var antFoodColor = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antColor);
+            var antFoodColorToFood = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antToFoodColor);
+            var antFoodColorToNest = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antToNestColor);
             // blend antFoodColor with groundColor
             // e.g.
             // 1) 1 ant, 0 food (max 1 ant per cell) => 100% antColor
             // 2) 1 ant, 1 food (max 4 ant per cell, max 2 food per cell) => 75% antFoodColor blended with 25% groundColor
-            var cellColor = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColor);
-            colorArray[i][j] = cellColor;
+            var cellColorToFood = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColorToFood);
+            var cellColorToNest = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColorToNest);
+            colorArray[i][j][0 /* toFood */] = cellColorToFood;
+            colorArray[i][j][1 /* toNest */] = cellColorToNest;
         }
     }
 }
@@ -131,16 +171,26 @@ function init() {
     initColors();
 }
 function initRandomValues(field) {
-    for (var i = 0; i < config.antPopulation; i++) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
-        field[x][y].addAnt(new Ant());
-    }
-    for (var i = 0; i < config.foodSources; i++) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
-        field[x][y].addFood();
-    }
+    field[2][2].addAnt(new Ant(config.initialPheremoneStrength));
+    // field[2][1].addAnt(new Ant(config.initialPheremoneStrength));
+    // field[2][0].addAnt(new Ant(config.initialPheremoneStrength));
+    field[0][0].addFood();
+    field[3][3].setNest();
+    // for (var i = 0; i < config.antPopulation; i++) {
+    //     var x = Math.floor(Math.random() * fieldWidth);
+    //     var y = Math.floor(Math.random() * fieldHeight);
+    //     field[x][y].addAnt(new Ant());
+    // }
+    // for (var i = 0; i < config.foodSources; i++) {
+    //     var x = Math.floor(Math.random() * fieldWidth);
+    //     var y = Math.floor(Math.random() * fieldHeight);
+    //     field[x][y].addFood();
+    // }
+    // for (var i = 0; i < config.nestSources; i++) {
+    //     var x = Math.floor(Math.random() * fieldWidth);
+    //     var y = Math.floor(Math.random() * fieldHeight);
+    //     field[x][y].setNest();
+    // }
 }
 function randomizeArray(field) {
     // Fisher-Yates shuffle https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
@@ -152,39 +202,64 @@ function randomizeArray(field) {
     }
     return field;
 }
-function getCellScoreAnt(cell) {
+function getCellScoreAnt(cell, ant) {
     if (!cell.canAddAnt())
         return -1;
-    // TODO calculate cell score
-    return Math.random();
+    if (ant.direction === 1 /* toNest */) {
+        if (cell.nest) {
+            return Number.MAX_VALUE;
+        }
+        return cell.toNestPheromone;
+    }
+    else {
+        if (cell.food) {
+            return Number.MAX_VALUE;
+        }
+        return cell.toFoodPheromone;
+    }
 }
 // get best neighbouring cell for the ant to move (can also be the cell he is currently in)
-function getBestCell(field, x, y, scoreFunction) {
+function getBestCell(field, x, y, ant, scoreFunction) {
     //     0 1 2
     //     _____
     // 0 | 0 1 2
     // 1 | 3 4 5
     // 2 | 6 7 8
     var neighbourCells = [1, 3, 5, 7]; // top, left, right, bottom
-    var bestNeighbour = field[x][y];
-    var bestScore = scoreFunction(bestNeighbour);
+    neighbourCells = randomizeArray(neighbourCells);
+    // var neighbours = [field[x][y]];
+    // var neighbourScores = [scoreFunction(field[x][y], ant)];
+    var neighbours = [];
+    var neighbourScores = [];
     for (var i = 0; i < neighbourCells.length; i++) {
         var n = neighbourCells[i];
         var nx = Math.floor(n / 3);
         var ny = n % 3;
-        var rx = (nx - 1 + x + fieldWidth) % fieldWidth;
-        var ry = (ny - 1 + y + fieldHeight) % fieldHeight;
+        var rx = nx - 1 + x;
+        var ry = ny - 1 + y;
+        if (rx < 0 || rx >= fieldWidth || ry < 0 || ry >= fieldHeight) {
+            continue;
+        }
         var cell = field[rx][ry];
-        var score = scoreFunction(cell);
-        if (score > bestScore || (score === bestScore && Math.random() > 0.5)) {
-            bestScore = score;
-            bestNeighbour = cell;
+        var score = scoreFunction(cell, ant);
+        neighbours.push(cell);
+        neighbourScores.push(score);
+    }
+    neighbourScores.forEach((a, index) => neighbourScores[index] = a + 1);
+    var scoreSum = neighbourScores.reduce((a, b) => a + b, 0);
+    neighbourScores.forEach((a, index) => neighbourScores[index] = a / scoreSum);
+    var random = Math.random();
+    var selectedIndex;
+    for (selectedIndex = 0; selectedIndex < neighbourScores.length; selectedIndex++) {
+        random -= neighbourScores[selectedIndex];
+        if (random <= 0) {
+            break;
         }
     }
-    return bestNeighbour;
+    return neighbours[selectedIndex];
 }
-function getBestCellAnt(field, x, y) {
-    return getBestCell(field, x, y, this.getCellScoreAnt);
+function getBestCellAnt(field, x, y, ant) {
+    return getBestCell(field, x, y, ant, this.getCellScoreAnt);
 }
 function transition(field, x, y) {
     var cell = field[x][y];
@@ -194,10 +269,25 @@ function transition(field, x, y) {
             return;
         }
         ant.moved = true;
-        var bestCell = getBestCellAnt(field, x, y);
+        var bestCell = getBestCellAnt(field, x, y, ant);
         if (bestCell != cell) {
             if (bestCell.addAnt(ant)) {
                 cell.ant = null; // remove from current cell;
+                if (ant.direction === 0 /* toFood */) {
+                    bestCell.addtoNestPheromone(ant.pheromoneStrength);
+                }
+                else {
+                    bestCell.addToFoodPheromone(ant.pheromoneStrength);
+                }
+                ant.decreasePheromoneStrength();
+                if (bestCell.food) {
+                    ant.direction = 1 /* toNest */;
+                    ant.pheromoneStrength = config.initialPheremoneStrength;
+                }
+                else if (bestCell.nest) {
+                    ant.direction = 0 /* toFood */;
+                    ant.pheromoneStrength = config.initialPheremoneStrength;
+                }
             }
         }
     }
@@ -216,6 +306,7 @@ function updateField() {
         for (var j = 0; j < fieldHeight; j++) {
             if (field[i][j] != null) {
                 field[i][j].setMoved(false);
+                field[i][j].decreasePheromone();
             }
         }
     }
@@ -226,10 +317,15 @@ function drawClearField() {
     ctx.fillRect(0, 0, fieldWidth * pixelSize, fieldHeight * pixelSize);
 }
 function drawField() {
+    ctx.font = pixelSize / 2 + "px Courier New";
     for (var i = 0; i < fieldWidth; i++) {
         for (var j = 0; j < fieldHeight; j++) {
             ctx.fillStyle = field[i][j].color;
             ctx.fillRect(i * pixelSize, j * pixelSize, pixelSize, pixelSize);
+            ctx.fillStyle = "#DDFFDD";
+            ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize, (j) * pixelSize + pixelSize);
+            ctx.fillStyle = "#FFDDDD";
+            ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
         }
     }
 }
