@@ -53,7 +53,7 @@ class Cell {
     }
     get color() {
         if (this.maxAnts == 0) {
-            return config.obstacleColor; //"#711b7c"; // obstacle, violett
+            return config.obstacleColor;
         }
         if (this.nest) {
             return config.nestColor;
@@ -87,9 +87,6 @@ class Cell {
         this.toFoodPheromone = Math.max(this.toFoodPheromone - 1, 0);
         this.toNestPheromone = Math.max(this.toNestPheromone - 1, 0);
     }
-    // public addPheromone(pheromone: number) {
-    //     this.pheromone = Math.min(this.pheromone + pheromone, config.maxPheromone);
-    // }
     addtoNestPheromone(pheromone) {
         this.toNestPheromone = Math.min(this.toNestPheromone + pheromone, config.maxPheromone);
     }
@@ -236,8 +233,6 @@ function getBestCell(field, x, y, ant, scoreFunction) {
     // var neighbourCells = [1, 3, 5, 7]; // top, left, right, bottom
     var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8];
     neighbourCells = randomizeArray(neighbourCells);
-    // var neighbours = [field[x][y]];
-    // var neighbourScores = [scoreFunction(field[x][y], ant)];
     var neighbours = [];
     var neighbourScores = [];
     for (var i = 0; i < neighbourCells.length; i++) {
@@ -281,9 +276,8 @@ function transition(field, x, y) {
         var bestCell = getBestCellAnt(field, x, y, ant);
         if (bestCell != cell) {
             if (bestCell.addAnt(ant)) {
-                cell.ants.splice(a, 1);
+                cell.ants.splice(a, 1); // remove from current cell
                 a--;
-                //cell.ant = null; // remove from current cell;
                 if (ant.direction === 0 /* toFood */) {
                     bestCell.addtoNestPheromone(ant.pheromoneStrength);
                     if (bestCell.food) {
@@ -302,7 +296,6 @@ function transition(field, x, y) {
             }
         }
     }
-    // TODO transition
 }
 function updateField() {
     randomField = randomizeArray(randomField);

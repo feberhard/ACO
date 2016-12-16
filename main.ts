@@ -55,13 +55,9 @@ var default_config = {
 var config = default_config;
 
 class Cell {
-    //public ant: Ant;
-    // TODO possible more than 1 ant per cell
     public ants: Ant[];
     public maxAnts: number;
 
-    // TODO possible two different pheromone: 1 for going to the food, 1 for going back
-    // public pheromone: number;
     public toNestPheromone: number;
     public toFoodPheromone: number;
 
@@ -71,7 +67,7 @@ class Cell {
 
     get color(): string {
         if (this.maxAnts == 0) {
-            return config.obstacleColor; //"#711b7c"; // obstacle, violett
+            return config.obstacleColor; 
         }
         if (this.nest) {
             return config.nestColor;
@@ -120,10 +116,6 @@ class Cell {
         this.toFoodPheromone = Math.max(this.toFoodPheromone - 1, 0);
         this.toNestPheromone = Math.max(this.toNestPheromone - 1, 0);
     }
-
-    // public addPheromone(pheromone: number) {
-    //     this.pheromone = Math.min(this.pheromone + pheromone, config.maxPheromone);
-    // }
 
     public addtoNestPheromone(pheromone: number) {
         this.toNestPheromone = Math.min(this.toNestPheromone + pheromone, config.maxPheromone);
@@ -309,9 +301,6 @@ function getBestCell(field: Cell[][], x: number, y: number, ant: Ant, scoreFunct
     var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8]; 
     neighbourCells = randomizeArray(neighbourCells);
 
-    // var neighbours = [field[x][y]];
-    // var neighbourScores = [scoreFunction(field[x][y], ant)];
-
     var neighbours = [];
     var neighbourScores = [];
 
@@ -368,9 +357,8 @@ function transition(field: Cell[][], x: number, y: number) {
         var bestCell = getBestCellAnt(field, x, y, ant);
         if (bestCell != cell) { // move ant
             if (bestCell.addAnt(ant)) { // add to better cell
-                cell.ants.splice(a, 1);
+                cell.ants.splice(a, 1); // remove from current cell
                 a--;
-                //cell.ant = null; // remove from current cell;
 
                 if (ant.direction === Direction.toFood) {
                     bestCell.addtoNestPheromone(ant.pheromoneStrength);
@@ -391,7 +379,6 @@ function transition(field: Cell[][], x: number, y: number) {
             }
         }
     }
-    // TODO transition
 }
 
 function updateField() {
