@@ -11,9 +11,9 @@
 
 
 // variables
-var fieldWidth = 5;
-var fieldHeight = 5;
-var pixelSize = 100;
+var fieldWidth = 20;
+var fieldHeight = fieldWidth;
+var pixelSize = 500 / fieldWidth;
 var field: Cell[][];
 var randomField: number[];
 var randomNeighbour: number[];
@@ -31,8 +31,8 @@ var default_config = {
     nestColor: "#FF0000", // red
 
     // ant
-    antPopulation: 1,
-    initialPheremoneStrength: 200,
+    antPopulation: 20,
+    initialPheremoneStrength: 500,
 
     // food
     foodSources: 1,
@@ -41,21 +41,22 @@ var default_config = {
     nestSources: 1,
 
     // cell
-    maxPheromone: 200,
+    maxPheromone: 300,
+    maxAnts: 100,
 
     // general
     fps: 100,
-    maxCellSize: 1, // max number of ants per cell
+    // maxCellSize: 1, // max number of ants per cell
     // leavePheromoneAmout: 50
 };
 
 var config = default_config;
 
 class Cell {
-    public ant: Ant;
+    //public ant: Ant;
     // TODO possible more than 1 ant per cell
-    // public ants: Ant[];
-    // public maxAnts: number;
+    public ants: Ant[];
+    public maxAnts: number;
 
     // TODO possible two different pheromone: 1 for going to the food, 1 for going back
     // public pheromone: number;
@@ -70,13 +71,16 @@ class Cell {
         if (this.nest) {
             return config.nestColor;
         }
-        var antCount = this.ant != null ? 1 : 0;
+        var antCount = this.ants.length;
         var foodCount = this.food ? 1 : 0;
-        var antDirection = this.ant != null ? this.ant.direction : 0;
-        return colorArray[antCount][foodCount][antDirection];
+        var antDirection = this.ants.length > 0 ? this.ants[0].direction : 0;
+        return colorArray[this.ants.length > 0 ? this.maxAnts : 0][foodCount][antDirection];
+        // return colorArray[antCount][foodCount][antDirection];
     }
 
-    constructor(public col: number, public row: number, food: boolean = false, nest: boolean = false) {
+    constructor(public col: number, public row: number, maxAnts: number, food: boolean = false, nest: boolean = false) {
+        this.ants = [];
+        this.maxAnts = maxAnts;
         this.food = food;
         this.nest = nest;
         this.toNestPheromone = 0;
@@ -84,12 +88,12 @@ class Cell {
     }
 
     public canAddAnt() {
-        return this.ant == null;
+        return this.ants.length < this.maxAnts;
     }
 
     public addAnt(ant: Ant) {
         if (this.canAddAnt()) {
-            this.ant = ant;
+            this.ants.push(ant);
             return true;
         }
         return false;
@@ -104,9 +108,7 @@ class Cell {
     }
 
     public setMoved(moved: boolean) {
-        if (this.ant != null) {
-            this.ant.moved = moved
-        }
+        this.ants.forEach(a => a.moved = moved);
     }
 
     public decreasePheromone() {
@@ -155,7 +157,7 @@ function initColors() {
     //       1 | f
     // b = ground/brown, b = black, f = food/green
 
-    var maxAnts = config.maxCellSize;
+    var maxAnts = config.maxAnts;
     var maxFood = 1;
     colorArray = new Array<string[][]>(maxAnts + 1);
     for (var i = 0; i < maxAnts + 1; i++) {
@@ -208,7 +210,7 @@ function init() {
     for (var i = 0; i < fieldWidth; i++) {
         field[i] = new Array(fieldHeight);
         for (var j = 0; j < fieldHeight; j++) {
-            field[i][j] = new Cell(i, j);
+            field[i][j] = new Cell(i, j, config.maxAnts);
         }
     }
 
@@ -233,18 +235,19 @@ function init() {
 
 function initRandomValues(field: Cell[][]) {
 
-    field[2][2].addAnt(new Ant(config.initialPheremoneStrength));
-    // field[2][1].addAnt(new Ant(config.initialPheremoneStrength));
+    // field[fieldWidth - 1][fieldHeight - 2].addAnt(new Ant(config.initialPheremoneStrength));
+    // field[fieldWidth - 1][fieldHeight - 1].addAnt(new Ant(config.initialPheremoneStrength));
     // field[2][0].addAnt(new Ant(config.initialPheremoneStrength));
-    field[0][0].addFood();
-    field[3][3].setNest();
+    field[Math.round(fieldWidth/4)][Math.round(fieldWidth/4)].addFood();
+    field[fieldWidth - Math.round(fieldWidth/4)][fieldHeight - Math.round(fieldWidth/4)].setNest();
 
-    // for (var i = 0; i < config.antPopulation; i++) {
-    //     var x = Math.floor(Math.random() * fieldWidth);
-    //     var y = Math.floor(Math.random() * fieldHeight);
+    for (var i = 0; i < config.antPopulation; i++) {
+        // var x = Math.floor(Math.random() * fieldWidth);
+        // var y = Math.floor(Math.random() * fieldHeight);
 
-    //     field[x][y].addAnt(new Ant());
-    // }
+        // field[x][y].addAnt(new Ant(config.initialPheremoneStrength));
+        field[fieldWidth - Math.round(fieldWidth/4)][fieldHeight - Math.round(fieldWidth/4)].addAnt(new Ant(config.initialPheremoneStrength));
+    }
 
     // for (var i = 0; i < config.foodSources; i++) {
     //     var x = Math.floor(Math.random() * fieldWidth);
@@ -347,8 +350,9 @@ function getBestCellAnt(field: Cell[][], x: number, y: number, ant: Ant) {
 function transition(field: Cell[][], x: number, y: number) {
     var cell = field[x][y];
 
-    if (cell.ant != null) {
-        var ant = cell.ant;
+
+    for (var a = 0; a < cell.ants.length; a++) {
+        var ant = cell.ants[a];
         if (ant.moved === true) {
             return;
         }
@@ -357,23 +361,26 @@ function transition(field: Cell[][], x: number, y: number) {
         var bestCell = getBestCellAnt(field, x, y, ant);
         if (bestCell != cell) { // move ant
             if (bestCell.addAnt(ant)) { // add to better cell
-                cell.ant = null; // remove from current cell;
+                cell.ants.splice(a, 1);
+                a--;
+                //cell.ant = null; // remove from current cell;
 
                 if (ant.direction === Direction.toFood) {
                     bestCell.addtoNestPheromone(ant.pheromoneStrength);
+                    if (bestCell.food) { // take food
+                        ant.direction = Direction.toNest;
+                        ant.pheromoneStrength = Math.max(config.initialPheremoneStrength, ant.pheromoneStrength);
+                        //ant.pheromoneStrength = config.initialPheremoneStrength;
+                    }
                 } else {
                     bestCell.addToFoodPheromone(ant.pheromoneStrength);
+                    if (bestCell.nest) {
+                        ant.direction = Direction.toFood;
+                        ant.pheromoneStrength = config.initialPheremoneStrength;
+                    }
                 }
 
                 ant.decreasePheromoneStrength();
-
-                if (bestCell.food) { // take food
-                    ant.direction = Direction.toNest;
-                    ant.pheromoneStrength = config.initialPheremoneStrength;
-                } else if (bestCell.nest) {
-                    ant.direction = Direction.toFood;
-                    ant.pheromoneStrength = config.initialPheremoneStrength;
-                }
             }
         }
     }
@@ -417,10 +424,14 @@ function drawField() {
 
             ctx.fillRect(i * pixelSize, j * pixelSize, pixelSize, pixelSize);
 
-            ctx.fillStyle = "#DDFFDD";
-            ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize, (j) * pixelSize + pixelSize);
-            ctx.fillStyle = "#FFDDDD";
-            ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
+            if (field[i][j].toFoodPheromone) {
+                ctx.fillStyle = "#DDFFDD";
+                ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize, (j) * pixelSize + pixelSize);
+            }
+            if (field[i][j].toNestPheromone) {
+                ctx.fillStyle = "#FFDDDD";
+                ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
+            }
         }
     }
 }
