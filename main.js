@@ -24,16 +24,18 @@ var default_config = {
     antToFoodColor: "#000000",
     antToNestColor: "#CCCC00",
     nestColor: "#FF0000",
+    obstacleColor: "#0000FF",
     // ant
     antPopulation: 20,
-    initialPheremoneStrength: 500,
+    initialPheremoneStrength: 750,
     // food
     foodSources: 1,
     // nest
     nestSources: 1,
     // cell
-    maxPheromone: 300,
+    maxPheromone: 500,
     maxAnts: 100,
+    obstaclesCount: 20,
     // general
     fps: 100,
 };
@@ -50,6 +52,9 @@ class Cell {
         this.toFoodPheromone = 0;
     }
     get color() {
+        if (this.maxAnts == 0) {
+            return config.obstacleColor; //"#711b7c"; // obstacle, violett
+        }
         if (this.nest) {
             return config.nestColor;
         }
@@ -172,15 +177,16 @@ function init() {
     initColors();
 }
 function initRandomValues(field) {
-    // field[fieldWidth - 1][fieldHeight - 2].addAnt(new Ant(config.initialPheremoneStrength));
-    // field[fieldWidth - 1][fieldHeight - 1].addAnt(new Ant(config.initialPheremoneStrength));
-    // field[2][0].addAnt(new Ant(config.initialPheremoneStrength));
+    for (var i = 0; i < config.obstaclesCount; i++) {
+        var x = Math.floor(Math.random() * fieldWidth);
+        var y = Math.floor(Math.random() * fieldHeight);
+        field[x][y].maxAnts = 0;
+    }
     field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].addFood();
+    field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
     field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].setNest();
+    field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
     for (var i = 0; i < config.antPopulation; i++) {
-        // var x = Math.floor(Math.random() * fieldWidth);
-        // var y = Math.floor(Math.random() * fieldHeight);
-        // field[x][y].addAnt(new Ant(config.initialPheremoneStrength));
         field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheremoneStrength));
     }
     // for (var i = 0; i < config.foodSources; i++) {
@@ -227,7 +233,8 @@ function getBestCell(field, x, y, ant, scoreFunction) {
     // 0 | 0 1 2
     // 1 | 3 4 5
     // 2 | 6 7 8
-    var neighbourCells = [1, 3, 5, 7]; // top, left, right, bottom
+    // var neighbourCells = [1, 3, 5, 7]; // top, left, right, bottom
+    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8];
     neighbourCells = randomizeArray(neighbourCells);
     // var neighbours = [field[x][y]];
     // var neighbourScores = [scoreFunction(field[x][y], ant)];
