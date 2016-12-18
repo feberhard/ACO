@@ -82,7 +82,7 @@ class Cell {
         return false;
     }
     canAddObstacle() {
-        return !this.nest && !this.food;
+        return !this.nest && !this.food && this.maxAnts != 0;
     }
     addFood(food = config.maxFood) {
         this.food = Math.min(this.food + food, config.maxFood);
@@ -166,7 +166,7 @@ function gameloop(currentStartCount) {
     }, 1000 / config.fps);
 }
 function updateStatistics() {
-    setHtmlInputValue('antsWithoutFood', config.antPopulation - statistics.antsWithFood);
+    setHtmlInputValue('antsWithoutFood', config.antPopulation * config.nests - statistics.antsWithFood);
     setHtmlInputValue('antsWithFood', statistics.antsWithFood);
     setHtmlInputValue('foodInSources', statistics.foodInSources);
     setHtmlInputValue('foodInNests', statistics.foodInNests);
@@ -333,7 +333,7 @@ function transition(field, x, y) {
         }
         ant.moved = true;
         var bestCell = getBestCellAnt(field, x, y, ant);
-        if (bestCell != cell) {
+        if (bestCell != null && bestCell != cell) {
             if (bestCell.addAnt(ant)) {
                 cell.ants.splice(a, 1); // remove from current cell
                 a--;

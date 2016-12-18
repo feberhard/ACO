@@ -223,7 +223,7 @@ function gameloop(currentStartCount) {
 }
 
 function updateStatistics() {
-    setHtmlInputValue('antsWithoutFood', config.antPopulation - statistics.antsWithFood);
+    setHtmlInputValue('antsWithoutFood', config.antPopulation * config.nests - statistics.antsWithFood);
     setHtmlInputValue('antsWithFood', statistics.antsWithFood);
     setHtmlInputValue('foodInSources', statistics.foodInSources);
     setHtmlInputValue('foodInNests', statistics.foodInNests);
