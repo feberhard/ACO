@@ -1,7 +1,7 @@
 /*
  * //==============================================\\
  * || Project: Ant Colony Optimization             ||
- * || Authors: Eberhard Felix, Dorfeister Daniel,  ||
+ * || Authors: Eberhard Felix, Dorfmeister Daniel, ||
  * ||          De Rosis Alessandro                 ||
  * || Date:    05.12.2016                          ||
  * \\==============================================//
@@ -27,21 +27,28 @@ var default_config = {
     obstacleColor: "#0000FF",
     // ant
     antPopulation: 20,
-    initialPheremoneStrength: 750,
+    initialPheremoneStrength: 300,
     // food
     foodSources: 1,
+    maxFood: 200,
     // nest
-    nestSources: 1,
+    nests: 1,
     // cell
-    maxPheromone: 500,
+    maxPheromone: 300,
     maxAnts: 100,
-    obstaclesCount: 20,
+    obstacles: 20,
     // general
     fps: 100,
 };
-var config = default_config;
+var config = JSON.parse(JSON.stringify(default_config));
+var default_statistics = {
+    foodInSources: 0,
+    foodInNests: 0,
+    antsWithFood: 0,
+};
+var statistics = JSON.parse(JSON.stringify(default_statistics));
 class Cell {
-    constructor(col, row, maxAnts, food = false, nest = false) {
+    constructor(col, row, maxAnts, food = 0, nest = false) {
         this.col = col;
         this.row = row;
         this.ants = [];
@@ -59,7 +66,7 @@ class Cell {
             return config.nestColor;
         }
         var antCount = this.ants.length;
-        var foodCount = this.food ? 1 : 0;
+        var foodCount = this.food;
         var antDirection = this.ants.length > 0 ? this.ants[0].direction : 0;
         return colorArray[this.ants.length > 0 ? this.maxAnts : 0][foodCount][antDirection];
         // return colorArray[antCount][foodCount][antDirection];
@@ -74,8 +81,14 @@ class Cell {
         }
         return false;
     }
-    addFood() {
-        this.food = true;
+    canAddObstacle() {
+        return !this.nest && !this.food;
+    }
+    addFood(food = config.maxFood) {
+        this.food = Math.min(this.food + food, config.maxFood);
+    }
+    takeFood() {
+        this.food = Math.max(this.food - 1, 0);
     }
     setNest() {
         this.nest = true;
@@ -96,6 +109,7 @@ class Cell {
 }
 class Ant {
     constructor(pheromoneStrength) {
+        this.hasFood = false;
         this.direction = 0 /* toFood */;
         this.pheromoneStrength = pheromoneStrength;
     }
@@ -109,26 +123,27 @@ function initColors() {
     //          ------------
     // food  0 | g         b
     //       1 | f
-    // b = ground/brown, b = black, f = food/green
+    // g = ground/brown, b = black, f = food/green
     var maxAnts = config.maxAnts;
-    var maxFood = 1;
+    var maxFood = config.maxFood;
     colorArray = new Array(maxAnts + 1);
     for (var i = 0; i < maxAnts + 1; i++) {
         colorArray[i] = new Array(maxFood + 1);
         var antPercent = i / maxAnts;
         for (var j = 0; j < maxFood + 1; j++) {
             colorArray[i][j] = new Array(2);
-            var foodPercent = j / maxFood;
+            var foodBonus = j == 0 ? 0 : Math.ceil(maxFood * 0.2);
+            var foodPercent = Math.min(j + foodBonus, maxFood) / maxFood; // increase visibility of food a bit
             // antColor * antPercent blended with foodColor * foodPercent
             // e.g. 
-            // 1) 1 ant, 0 food (max 1 ant per cell) => 100% antColor
-            // 2) 1 ant, 1 food (max 4 ant per cell, max 2 food per cell) => 25% antColor blended with 50% foodColor
+            // 1) 1 ant, 0 food (max 1 ants per cell) => 100% antColor
+            // 2) 1 ant, 1 food (max 4 ants per cell, max 2 food per cell) => 25% antColor blended with 50% foodColor
             var antFoodColorToFood = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antToFoodColor);
             var antFoodColorToNest = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antToNestColor);
             // blend antFoodColor with groundColor
             // e.g.
-            // 1) 1 ant, 0 food (max 1 ant per cell) => 100% antColor
-            // 2) 1 ant, 1 food (max 4 ant per cell, max 2 food per cell) => 75% antFoodColor blended with 25% groundColor
+            // 1) 1 ant, 0 food (max 1 ants per cell) => 100% antColor
+            // 2) 1 ant, 1 food (max 4 ants per cell, max 2 food per cell) => 75% antFoodColor blended with 25% groundColor
             var cellColorToFood = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColorToFood);
             var cellColorToNest = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColorToNest);
             colorArray[i][j][0 /* toFood */] = cellColorToFood;
@@ -147,7 +162,19 @@ function gameloop(currentStartCount) {
         updateField();
         drawClearField();
         drawField();
+        updateStatistics();
     }, 1000 / config.fps);
+}
+function updateStatistics() {
+    setHtmlInputValue('antsWithoutFood', config.antPopulation - statistics.antsWithFood);
+    setHtmlInputValue('antsWithFood', statistics.antsWithFood);
+    setHtmlInputValue('foodInSources', statistics.foodInSources);
+    setHtmlInputValue('foodInNests', statistics.foodInNests);
+}
+function resetStatistics() {
+    statistics = JSON.parse(JSON.stringify(default_statistics));
+    statistics.foodInSources = config.foodSources * config.maxFood;
+    updateStatistics();
 }
 function init() {
     field = new Array(fieldWidth);
@@ -173,29 +200,59 @@ function init() {
     canvas.height = fieldHeight * pixelSize;
     initColors();
 }
+// function initRandomValues(field: Cell[][]) {
+//     for (var i = 0; i < config.obstacles; i++) {
+//         var x = Math.floor(Math.random() * fieldWidth);
+//         var y = Math.floor(Math.random() * fieldHeight);
+//         field[x][y].maxAnts = 0;
+//     }
+//     // for (var i = 2; i < fieldWidth - 5; i++) {
+//     //     var x = i;
+//     //     var y = fieldHeight - i;
+//     //     field[x][y].maxAnts = 0;
+//     //     field[x][y+1].maxAnts = 0;
+//     // }
+//     field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].addFood();
+//     field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
+//     field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].setNest();
+//     field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
+//     for (var i = 0; i < config.antPopulation; i++) {
+//         field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheremoneStrength));
+//     }
+// }
 function initRandomValues(field) {
-    for (var i = 0; i < config.obstaclesCount; i++) {
+    var count = 0;
+    while (count < config.nests) {
         var x = Math.floor(Math.random() * fieldWidth);
         var y = Math.floor(Math.random() * fieldHeight);
-        field[x][y].maxAnts = 0;
+        if (field[x][y].canAddObstacle()) {
+            field[x][y].setNest();
+            field[x][y].maxAnts = config.maxAnts;
+            for (var i = 0; i < config.antPopulation; i++) {
+                field[x][y].addAnt(new Ant(config.initialPheremoneStrength));
+            }
+            count++;
+        }
     }
-    field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].addFood();
-    field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
-    field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].setNest();
-    field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
-    for (var i = 0; i < config.antPopulation; i++) {
-        field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheremoneStrength));
+    count = 0;
+    while (count < config.foodSources) {
+        var x = Math.floor(Math.random() * fieldWidth);
+        var y = Math.floor(Math.random() * fieldHeight);
+        if (field[x][y].canAddObstacle()) {
+            field[x][y].addFood();
+            field[x][y].maxAnts = config.maxAnts;
+            count++;
+        }
     }
-    // for (var i = 0; i < config.foodSources; i++) {
-    //     var x = Math.floor(Math.random() * fieldWidth);
-    //     var y = Math.floor(Math.random() * fieldHeight);
-    //     field[x][y].addFood();
-    // }
-    // for (var i = 0; i < config.nestSources; i++) {
-    //     var x = Math.floor(Math.random() * fieldWidth);
-    //     var y = Math.floor(Math.random() * fieldHeight);
-    //     field[x][y].setNest();
-    // }
+    count = 0;
+    while (count < config.obstacles) {
+        var x = Math.floor(Math.random() * fieldWidth);
+        var y = Math.floor(Math.random() * fieldHeight);
+        if (field[x][y].canAddObstacle()) {
+            field[x][y].maxAnts = 0;
+            count++;
+        }
+    }
 }
 function randomizeArray(field) {
     // Fisher-Yates shuffle https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
@@ -250,6 +307,8 @@ function getBestCell(field, x, y, ant, scoreFunction) {
         neighbourScores.push(score);
     }
     neighbourScores.forEach((a, index) => neighbourScores[index] = a + 1);
+    // var maxScore = neighbourScores.reduce((a, b) => Math.max(a, b), 0);
+    // neighbourScores[neighbourScores.findIndex((v, i, a) => v == maxScore)] *= 0.1;
     var scoreSum = neighbourScores.reduce((a, b) => a + b, 0);
     neighbourScores.forEach((a, index) => neighbourScores[index] = a / scoreSum);
     var random = Math.random();
@@ -280,16 +339,24 @@ function transition(field, x, y) {
                 a--;
                 if (ant.direction === 0 /* toFood */) {
                     bestCell.addtoNestPheromone(ant.pheromoneStrength);
-                    if (bestCell.food) {
+                    if (bestCell.food && !ant.hasFood) {
                         ant.direction = 1 /* toNest */;
+                        bestCell.takeFood();
+                        ant.hasFood = true;
                         ant.pheromoneStrength = Math.max(config.initialPheremoneStrength, ant.pheromoneStrength);
+                        //ant.pheromoneStrength = config.initialPheremoneStrength;
+                        statistics.foodInSources--;
+                        statistics.antsWithFood++;
                     }
                 }
                 else {
                     bestCell.addToFoodPheromone(ant.pheromoneStrength);
-                    if (bestCell.nest) {
+                    if (bestCell.nest && ant.hasFood) {
                         ant.direction = 0 /* toFood */;
+                        ant.hasFood = false;
                         ant.pheromoneStrength = config.initialPheremoneStrength;
+                        statistics.foodInNests++;
+                        statistics.antsWithFood--;
                     }
                 }
                 ant.decreasePheromoneStrength();
@@ -376,7 +443,7 @@ function changeFps() {
     setHtmlInputValue('fpsNumber', config.fps);
 }
 function restoreDefaultConfig() {
-    config = default_config;
+    config = JSON.parse(JSON.stringify(default_config));
     fillHtmlInputs();
 }
 function startSimulation() {
@@ -386,6 +453,7 @@ function startSimulation() {
     initRandomValues(field);
     startCount++;
     gameloop(startCount);
+    resetStatistics();
     startButton.value = "Restart simulation";
     pauseButton.style.display = "inline-block";
     resumeButton.style.display = "none";

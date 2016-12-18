@@ -1,7 +1,7 @@
 /*
  * //==============================================\\
  * || Project: Ant Colony Optimization             ||
- * || Authors: Eberhard Felix, Dorfeister Daniel,  ||
+ * || Authors: Eberhard Felix, Dorfmeister Daniel, ||
  * ||          De Rosis Alessandro                 ||
  * || Date:    05.12.2016                          ||
  * \\==============================================// 
@@ -33,18 +33,19 @@ var default_config = {
 
     // ant
     antPopulation: 20,
-    initialPheremoneStrength: 750,
+    initialPheremoneStrength: 300,
 
     // food
     foodSources: 1,
+    maxFood: 200,
 
     // nest
-    nestSources: 1,
+    nests: 1,
 
     // cell
-    maxPheromone: 500,
+    maxPheromone: 300,
     maxAnts: 100,
-    obstaclesCount: 20,
+    obstacles: 20,
 
     // general
     fps: 100,
@@ -52,7 +53,15 @@ var default_config = {
     // leavePheromoneAmout: 50
 };
 
-var config = default_config;
+var config = JSON.parse(JSON.stringify(default_config));
+
+var default_statistics = {
+    foodInSources: 0,
+    foodInNests: 0,
+    antsWithFood: 0,
+};
+
+var statistics = JSON.parse(JSON.stringify(default_statistics));
 
 class Cell {
     public ants: Ant[];
@@ -62,7 +71,7 @@ class Cell {
     public toFoodPheromone: number;
 
     // TODO probably make food a number which decreases every time an ant eats from it
-    public food: boolean;
+    public food: number;
     public nest: boolean;
 
     get color(): string {
@@ -73,13 +82,13 @@ class Cell {
             return config.nestColor;
         }
         var antCount = this.ants.length;
-        var foodCount = this.food ? 1 : 0;
+        var foodCount = this.food;
         var antDirection = this.ants.length > 0 ? this.ants[0].direction : 0;
         return colorArray[this.ants.length > 0 ? this.maxAnts : 0][foodCount][antDirection];
         // return colorArray[antCount][foodCount][antDirection];
     }
 
-    constructor(public col: number, public row: number, maxAnts: number, food: boolean = false, nest: boolean = false) {
+    constructor(public col: number, public row: number, maxAnts: number, food: number = 0, nest: boolean = false) {
         this.ants = [];
         this.maxAnts = maxAnts;
         this.food = food;
@@ -100,8 +109,16 @@ class Cell {
         return false;
     }
 
-    public addFood() {
-        this.food = true;
+    public canAddObstacle() {
+        return !this.nest && !this.food && this.maxAnts != 0;
+    }
+
+    public addFood(food: number = config.maxFood) {
+        this.food = Math.min(this.food + food, config.maxFood);
+    }
+
+    public takeFood() {
+        this.food = Math.max(this.food - 1, 0);
     }
 
     public setNest() {
@@ -135,6 +152,7 @@ class Ant {
     public moved: boolean;
     public direction: Direction;
     public pheromoneStrength: number;
+    public hasFood: boolean = false;
 
     constructor(pheromoneStrength: number) {
         this.direction = Direction.toFood;
@@ -152,10 +170,10 @@ function initColors() {
     //          ------------
     // food  0 | g         b
     //       1 | f
-    // b = ground/brown, b = black, f = food/green
+    // g = ground/brown, b = black, f = food/green
 
     var maxAnts = config.maxAnts;
-    var maxFood = 1;
+    var maxFood = config.maxFood;
     colorArray = new Array<string[][]>(maxAnts + 1);
     for (var i = 0; i < maxAnts + 1; i++) {
         colorArray[i] = new Array<string[]>(maxFood + 1);
@@ -163,17 +181,18 @@ function initColors() {
         var antPercent = i / maxAnts;
         for (var j = 0; j < maxFood + 1; j++) {
             colorArray[i][j] = new Array<string>(2);
-            var foodPercent = j / maxFood;
+            var foodBonus = j == 0 ? 0 : Math.ceil(maxFood * 0.2);
+            var foodPercent = Math.min(j + foodBonus, maxFood) / maxFood; // increase visibility of food a bit
             // antColor * antPercent blended with foodColor * foodPercent
             // e.g. 
-            // 1) 1 ant, 0 food (max 1 ant per cell) => 100% antColor
-            // 2) 1 ant, 1 food (max 4 ant per cell, max 2 food per cell) => 25% antColor blended with 50% foodColor
+            // 1) 1 ant, 0 food (max 1 ants per cell) => 100% antColor
+            // 2) 1 ant, 1 food (max 4 ants per cell, max 2 food per cell) => 25% antColor blended with 50% foodColor
             var antFoodColorToFood = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antToFoodColor);
             var antFoodColorToNest = shadeBlendConvert(antPercent + foodPercent > 0 ? antPercent / (antPercent + foodPercent) : 0, config.foodColor, config.antToNestColor);
             // blend antFoodColor with groundColor
             // e.g.
-            // 1) 1 ant, 0 food (max 1 ant per cell) => 100% antColor
-            // 2) 1 ant, 1 food (max 4 ant per cell, max 2 food per cell) => 75% antFoodColor blended with 25% groundColor
+            // 1) 1 ant, 0 food (max 1 ants per cell) => 100% antColor
+            // 2) 1 ant, 1 food (max 4 ants per cell, max 2 food per cell) => 75% antFoodColor blended with 25% groundColor
             var cellColorToFood = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColorToFood);
             var cellColorToNest = shadeBlendConvert(Math.min(antPercent + foodPercent, 1), config.groundColor, antFoodColorToNest);
             colorArray[i][j][Direction.toFood] = cellColorToFood;
@@ -198,7 +217,22 @@ function gameloop(currentStartCount) {
 
         drawClearField();
         drawField();
+        
+        updateStatistics();
     }, 1000 / config.fps);
+}
+
+function updateStatistics() {
+    setHtmlInputValue('antsWithoutFood', config.antPopulation - statistics.antsWithFood);
+    setHtmlInputValue('antsWithFood', statistics.antsWithFood);
+    setHtmlInputValue('foodInSources', statistics.foodInSources);
+    setHtmlInputValue('foodInNests', statistics.foodInNests);
+}
+
+function resetStatistics() {
+    statistics = JSON.parse(JSON.stringify(default_statistics));
+    statistics.foodInSources = config.foodSources * config.maxFood;
+    updateStatistics();
 }
 
 function init() {
@@ -230,36 +264,70 @@ function init() {
     initColors();
 }
 
+// function initRandomValues(field: Cell[][]) {
+//     for (var i = 0; i < config.obstacles; i++) {
+//         var x = Math.floor(Math.random() * fieldWidth);
+//         var y = Math.floor(Math.random() * fieldHeight);
+//         field[x][y].maxAnts = 0;
+//     }
+
+//     // for (var i = 2; i < fieldWidth - 5; i++) {
+//     //     var x = i;
+//     //     var y = fieldHeight - i;
+//     //     field[x][y].maxAnts = 0;
+//     //     field[x][y+1].maxAnts = 0;
+//     // }
+
+//     field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].addFood();
+//     field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
+//     field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].setNest();
+//     field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
+
+
+//     for (var i = 0; i < config.antPopulation; i++) {
+//         field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheremoneStrength));
+//     }
+// }
+
 function initRandomValues(field: Cell[][]) {
-    for (var i = 0; i < config.obstaclesCount; i++) {
+    var count = 0;
+    while (count < config.nests) {
         var x = Math.floor(Math.random() * fieldWidth);
         var y = Math.floor(Math.random() * fieldHeight);
-        field[x][y].maxAnts = 0;
+
+        if (field[x][y].canAddObstacle()) {
+            field[x][y].setNest();
+            field[x][y].maxAnts = config.maxAnts;
+
+            for (var i = 0; i < config.antPopulation; i++) {
+                field[x][y].addAnt(new Ant(config.initialPheremoneStrength));
+            }
+            count++;
+        }
     }
 
-    field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].addFood();
-    field[Math.round(fieldWidth / 4)][Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
-    field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].setNest();
-    field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].maxAnts = config.maxAnts;
+    count = 0;
+    while (count < config.foodSources) {
+        var x = Math.floor(Math.random() * fieldWidth);
+        var y = Math.floor(Math.random() * fieldHeight);
 
-
-    for (var i = 0; i < config.antPopulation; i++) {
-        field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheremoneStrength));
+        if (field[x][y].canAddObstacle()) {
+            field[x][y].addFood();
+            field[x][y].maxAnts = config.maxAnts;
+            count++;
+        }
     }
 
-    // for (var i = 0; i < config.foodSources; i++) {
-    //     var x = Math.floor(Math.random() * fieldWidth);
-    //     var y = Math.floor(Math.random() * fieldHeight);
+    count = 0;
+    while (count < config.obstacles) {
+        var x = Math.floor(Math.random() * fieldWidth);
+        var y = Math.floor(Math.random() * fieldHeight);
 
-    //     field[x][y].addFood();
-    // }
-
-    // for (var i = 0; i < config.nestSources; i++) {
-    //     var x = Math.floor(Math.random() * fieldWidth);
-    //     var y = Math.floor(Math.random() * fieldHeight);
-
-    //     field[x][y].setNest();
-    // }
+        if (field[x][y].canAddObstacle()) {
+            field[x][y].maxAnts = 0;
+            count++;
+        }
+    }
 }
 
 function randomizeArray(field: any[]) {
@@ -324,6 +392,10 @@ function getBestCell(field: Cell[][], x: number, y: number, ant: Ant, scoreFunct
     }
 
     neighbourScores.forEach((a, index) => neighbourScores[index] = a + 1);
+
+    // var maxScore = neighbourScores.reduce((a, b) => Math.max(a, b), 0);
+    // neighbourScores[neighbourScores.findIndex((v, i, a) => v == maxScore)] *= 0.1;
+
     var scoreSum = neighbourScores.reduce((a, b) => a + b, 0);
     neighbourScores.forEach((a, index) => neighbourScores[index] = a / scoreSum);
 
@@ -346,7 +418,6 @@ function getBestCellAnt(field: Cell[][], x: number, y: number, ant: Ant) {
 function transition(field: Cell[][], x: number, y: number) {
     var cell = field[x][y];
 
-
     for (var a = 0; a < cell.ants.length; a++) {
         var ant = cell.ants[a];
         if (ant.moved === true) {
@@ -355,23 +426,32 @@ function transition(field: Cell[][], x: number, y: number) {
         ant.moved = true;
 
         var bestCell = getBestCellAnt(field, x, y, ant);
-        if (bestCell != cell) { // move ant
+        if (bestCell != null && bestCell != cell) { // move ant
             if (bestCell.addAnt(ant)) { // add to better cell
                 cell.ants.splice(a, 1); // remove from current cell
                 a--;
 
                 if (ant.direction === Direction.toFood) {
                     bestCell.addtoNestPheromone(ant.pheromoneStrength);
-                    if (bestCell.food) { // take food
+                    if (bestCell.food && !ant.hasFood) { // take food
                         ant.direction = Direction.toNest;
+                        bestCell.takeFood();
+                        ant.hasFood = true;
                         ant.pheromoneStrength = Math.max(config.initialPheremoneStrength, ant.pheromoneStrength);
                         //ant.pheromoneStrength = config.initialPheremoneStrength;
+
+                        statistics.foodInSources--;
+                        statistics.antsWithFood++;
                     }
                 } else {
                     bestCell.addToFoodPheromone(ant.pheromoneStrength);
-                    if (bestCell.nest) {
+                    if (bestCell.nest && ant.hasFood) {
                         ant.direction = Direction.toFood;
+                        ant.hasFood = false;
                         ant.pheromoneStrength = config.initialPheremoneStrength;
+
+                        statistics.foodInNests++;
+                        statistics.antsWithFood--;
                     }
                 }
 
@@ -476,7 +556,7 @@ function changeFps() {
 }
 
 function restoreDefaultConfig() {
-    config = default_config;
+    config = JSON.parse(JSON.stringify(default_config));
     fillHtmlInputs();
 }
 
@@ -487,6 +567,8 @@ function startSimulation() {
     initRandomValues(field);
     startCount++;
     gameloop(startCount);
+
+    resetStatistics();
 
     startButton.value = "Restart simulation";
     pauseButton.style.display = "inline-block";

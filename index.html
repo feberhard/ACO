@@ -32,6 +32,22 @@
                         <output id="antsWithFood" />
                     </td>
                 </tr>
+                <tr>
+                    <td>
+                        Food in sources
+                    </td>
+                    <td>
+                        <output id="foodInSources" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Food in nests
+                    </td>
+                    <td>
+                        <output id="foodInNests" />
+                    </td>
+                </tr>
             </table>
 
             <h2>Configuration</h2>
@@ -49,10 +65,26 @@
                     </tr>
                     <tr>
                         <td>
-                            max ants per cell
+                            max. pheromone per cell
                         </td>
                         <td>
-                            <input id="cellSize" type="number" min="1" style="width: 30px;" />
+                            <input id="maxPheromone" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            max. ants per cell
+                        </td>
+                        <td>
+                            <input id="maxAnts" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            obstacles
+                        </td>
+                        <td>
+                            <input id="obstacles" type="number" min="0" style="width: 50px;" />
                         </td>
                     </tr>
                 </table>
@@ -62,7 +94,27 @@
                 <table>
                     <tr>
                         <td>
-                            ant population
+                            initial pheromone strength
+                        </td>
+                        <td>
+                            <input id="initialPheremoneStrength" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                </table>
+
+                <h3>Nest</h3>
+                <table>
+                    <tr>
+                        <td>
+                            nests
+                        </td>
+                        <td>
+                            <input id="nests" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            ant population per nest
                         </td>
                         <td>
                             <input id="antPopulation" type="number" min="0" style="width: 50px;" />
@@ -74,10 +126,18 @@
                 <table>
                     <tr>
                         <td>
-                            food Sources
+                            food sources
                         </td>
                         <td>
                             <input id="foodSources" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            max. food per source
+                        </td>
+                        <td>
+                            <input id="maxFood" type="number" min="1" style="width: 50px;" />
                         </td>
                     </tr>
                 </table>
