@@ -297,7 +297,6 @@ function initRandomValues(field: Cell[][]) {
 
         if (field[x][y].canAddObstacle()) {
             field[x][y].setNest();
-            field[x][y].maxAnts = config.maxAnts;
 
             for (var i = 0; i < config.antPopulation; i++) {
                 field[x][y].addAnt(new Ant(config.initialPheremoneStrength));
@@ -313,7 +312,6 @@ function initRandomValues(field: Cell[][]) {
 
         if (field[x][y].canAddObstacle()) {
             field[x][y].addFood();
-            field[x][y].maxAnts = config.maxAnts;
             count++;
         }
     }
@@ -392,10 +390,6 @@ function getBestCell(field: Cell[][], x: number, y: number, ant: Ant, scoreFunct
     }
 
     neighbourScores.forEach((a, index) => neighbourScores[index] = a + 1);
-
-    // var maxScore = neighbourScores.reduce((a, b) => Math.max(a, b), 0);
-    // neighbourScores[neighbourScores.findIndex((v, i, a) => v == maxScore)] *= 0.1;
-
     var scoreSum = neighbourScores.reduce((a, b) => a + b, 0);
     neighbourScores.forEach((a, index) => neighbourScores[index] = a / scoreSum);
 
