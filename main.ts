@@ -11,6 +11,7 @@
 
 
 // variables
+var minimisationAlgorithmEnabled = true;
 var fieldWidth = 20;
 var fieldHeight = fieldWidth;
 var pixelSize = 500 / fieldWidth;
@@ -409,8 +410,109 @@ function getBestCellAnt(field: Cell[][], x: number, y: number, ant: Ant) {
     return getBestCell(field, x, y, ant, this.getCellScoreAnt);
 }
 
+function minimisationAlgorithm(field: Cell[][], x: number, y: number,minToNest: boolean){
+    var cell = field[x][y];
+
+    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8]; 
+    var neighbours = [];
+    neighbours.pop()
+
+    for (var i = 0; i < neighbourCells.length; i++) {
+        var n = neighbourCells[i];
+        var nx = Math.floor(n / 3);
+        var ny = n % 3;
+
+        var rx = nx - 1 + x;
+        var ry = ny - 1 + y;
+
+        if (rx < 0 || rx >= fieldWidth || ry < 0 || ry >= fieldHeight) {
+            continue;
+        }
+
+        var cell = field[rx][ry];
+        
+
+        neighbours.push(cell);
+    }
+
+    //var toSpread : number = cell.toNestPheromone*1/100;
+    var toSpread = 1;
+
+    if(minToNest)
+        if(cell.toNestPheromone - toSpread<=0)
+            return;
+        else
+            cell.toNestPheromone-=toSpread;
+    else
+        if(cell.toFoodPheromone - toSpread<=0)
+            return;
+        else
+            cell.toFoodPheromone-=toSpread;
+
+
+    var eliminated = true;
+
+    while(eliminated){
+        eliminated=false;
+        var av=0;
+        neighbours.forEach(element => {
+            if(minToNest)
+                av+=element.toNestPheromone;
+            else    
+                av+=element.toFoodPheromone;
+        });
+        av+=toSpread;
+        av/=neighbours.length;
+        for(i = 0;i<neighbours.length;i++){
+            if(minToNest){
+                if(neighbours[i].toNestPheromone>av){
+                    eliminated=true;
+                    neighbours.splice(i);
+                    i--;                     
+                }
+            }
+            else{
+                if(neighbours[i].toFoodPheromone>av){
+                    eliminated=true;
+                    neighbours.splice(i);
+                    i--;                     
+                }
+            }
+
+        }
+    }
+    if(neighbours.length<=0)
+        return ;
+    var av_q = 0
+    neighbours.forEach(element => {
+        if(minToNest)
+            av_q+=element.toNestPheromone;
+        else
+            av_q+=element.toFoodPheromone;
+    });
+    av_q += toSpread;
+    av_q /=neighbours.length;
+
+    neighbours.forEach(element => {
+        if(minToNest){
+            var f= av_q- element.toNestPheromone;
+            element.toNestPheromone+=Math.abs(f);
+        }
+        else{
+            var f= av_q- element.toFoodPheromone;
+            element.toFoodPheromone+=Math.abs(f);
+        }
+    });
+
+}
+
 function transition(field: Cell[][], x: number, y: number) {
     var cell = field[x][y];
+
+    if(minimisationAlgorithmEnabled){
+        minimisationAlgorithm(field,x,y,true);
+        minimisationAlgorithm(field,x,y,false);
+    }
 
     for (var a = 0; a < cell.ants.length; a++) {
         var ant = cell.ants[a];
