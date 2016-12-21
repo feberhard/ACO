@@ -11,7 +11,7 @@
 
 
 // variables
-var minimisationAlgorithmEnabled = true;
+// var minimisationAlgorithmEnabled = true;
 var fieldWidth = 20;
 var fieldHeight = fieldWidth;
 var pixelSize = 500 / fieldWidth;
@@ -50,6 +50,7 @@ var default_config = {
 
     // general
     fps: 100,
+    minimisationAlgorithmEnabled: true
     // maxCellSize: 1, // max number of ants per cell
     // leavePheromoneAmout: 50
 };
@@ -509,7 +510,7 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number,minToNest: 
 function transition(field: Cell[][], x: number, y: number) {
     var cell = field[x][y];
 
-    if(minimisationAlgorithmEnabled){
+    if(config.minimisationAlgorithmEnabled){
         minimisationAlgorithm(field,x,y,true);
         minimisationAlgorithm(field,x,y,false);
     }

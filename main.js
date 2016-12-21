@@ -8,7 +8,7 @@
  */
 // start vs-code task: ctrl+shift+b
 // variables
-var minimisationAlgorithmEnabled = true;
+// var minimisationAlgorithmEnabled = true;
 var fieldWidth = 20;
 var fieldHeight = fieldWidth;
 var pixelSize = 500 / fieldWidth;
@@ -40,6 +40,7 @@ var default_config = {
     obstacles: 20,
     // general
     fps: 100,
+    minimisationAlgorithmEnabled: true
 };
 var config = JSON.parse(JSON.stringify(default_config));
 var default_statistics = {
@@ -402,7 +403,7 @@ function minimisationAlgorithm(field, x, y, minToNest) {
 }
 function transition(field, x, y) {
     var cell = field[x][y];
-    if (minimisationAlgorithmEnabled) {
+    if (config.minimisationAlgorithmEnabled) {
         minimisationAlgorithm(field, x, y, true);
         minimisationAlgorithm(field, x, y, false);
     }
