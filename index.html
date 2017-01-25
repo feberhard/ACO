@@ -56,6 +56,30 @@
                 <table>
                     <tr>
                         <td>
+                            drawing area size
+                        </td>
+                        <td>
+                            <input id="canvasSize" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            field width
+                        </td>
+                        <td>
+                            <input id="fieldWidth" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            field height
+                        </td>
+                        <td>
+                            <input id="fieldHeight" type="number" min="0" style="width: 50px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
                             fps
                         </td>
                         <td>
@@ -63,11 +87,14 @@
                             <output id="fpsNumber" />
                         </td>
                     </tr>
-                    <!--<tr>
-                        <td colspan="2">
-                            <label>Minimisation Algoritm <input id="minimisationAlgorithmEnabled" type="checkbox"> <label>
+                    <tr>
+                        <td >
+                            <label for="seperatePheromoneView">seperate pheromone view<label>
                         </td>
-                    </tr>-->
+                        <td>
+                            <input id="seperatePheromoneView" type="checkbox">
+                        </td>
+                    </tr>
                      <tr>
                         <td >
                             <label for="minimisationAlgorithmEnabled">minimisation algorithm<label>

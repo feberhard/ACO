@@ -8,14 +8,10 @@
  */
 // start vs-code task: ctrl+shift+b
 // variables
-// var minimisationAlgorithmEnabled = true;
-var fieldWidth = 20;
-var fieldHeight = fieldWidth;
-var pixelSize = 500 / fieldWidth;
+var pixelSize = 25;
 var field;
 var randomField;
-var randomNeighbour;
-var colorArray;
+var colorArray; // [ants][food][antDirection]
 var canvas;
 var ctx;
 var default_config = {
@@ -40,7 +36,11 @@ var default_config = {
     obstacles: 20,
     // general
     fps: 100,
-    minimisationAlgorithmEnabled: true
+    minimisationAlgorithmEnabled: true,
+    fieldWidth: 20,
+    fieldHeight: 20,
+    canvasSize: 800,
+    seperatePheromoneView: true,
 };
 var config = JSON.parse(JSON.stringify(default_config));
 var default_statistics = {
@@ -179,27 +179,24 @@ function resetStatistics() {
     updateStatistics();
 }
 function init() {
-    field = new Array(fieldWidth);
-    for (var i = 0; i < fieldWidth; i++) {
-        field[i] = new Array(fieldHeight);
-        for (var j = 0; j < fieldHeight; j++) {
+    pixelSize = Math.min(config.canvasSize / config.fieldWidth, config.canvasSize / config.fieldHeight);
+    canvas = document.getElementById("my-canvas");
+    ctx = canvas.getContext("2d");
+    canvas.width = config.fieldWidth * pixelSize;
+    canvas.height = config.fieldHeight * pixelSize;
+    canvas.style.width = canvas.width + "px";
+    canvas.style.height = canvas.height + "px";
+    field = new Array(config.fieldWidth);
+    for (var i = 0; i < config.fieldWidth; i++) {
+        field[i] = new Array(config.fieldHeight);
+        for (var j = 0; j < config.fieldHeight; j++) {
             field[i][j] = new Cell(i, j, config.maxAnts);
         }
     }
-    randomField = new Array(fieldWidth * fieldHeight);
-    for (var i = 0; i < fieldWidth * fieldHeight; i++) {
+    randomField = new Array(config.fieldWidth * config.fieldHeight);
+    for (var i = 0; i < config.fieldWidth * config.fieldHeight; i++) {
         randomField[i] = i;
     }
-    //     0 1 2
-    //     _____
-    // 0 | 0 1 2
-    // 1 | 3 4 5
-    // 2 | 6 7 8
-    randomNeighbour = [1, 3, 4, 5, 7];
-    canvas = document.getElementById("my-canvas");
-    ctx = canvas.getContext("2d");
-    canvas.width = fieldWidth * pixelSize;
-    canvas.height = fieldHeight * pixelSize;
     initColors();
 }
 // function initRandomValues(field: Cell[][]) {
@@ -225,8 +222,8 @@ function init() {
 function initRandomValues(field) {
     var count = 0;
     while (count < config.nests) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
+        var x = Math.floor(Math.random() * config.fieldWidth);
+        var y = Math.floor(Math.random() * config.fieldHeight);
         if (field[x][y].canAddObstacle()) {
             field[x][y].setNest();
             for (var i = 0; i < config.antPopulation; i++) {
@@ -237,8 +234,8 @@ function initRandomValues(field) {
     }
     count = 0;
     while (count < config.foodSources) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
+        var x = Math.floor(Math.random() * config.fieldWidth);
+        var y = Math.floor(Math.random() * config.fieldHeight);
         if (field[x][y].canAddObstacle()) {
             field[x][y].addFood();
             count++;
@@ -246,23 +243,13 @@ function initRandomValues(field) {
     }
     count = 0;
     while (count < config.obstacles) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
+        var x = Math.floor(Math.random() * config.fieldWidth);
+        var y = Math.floor(Math.random() * config.fieldHeight);
         if (field[x][y].canAddObstacle()) {
             field[x][y].maxAnts = 0;
             count++;
         }
     }
-}
-function randomizeArray(field) {
-    // Fisher-Yates shuffle https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-    for (var i = 0; i < field.length; i++) {
-        var j = Math.round(Math.random() * i);
-        var temp = field[i];
-        field[i] = field[j];
-        field[j] = temp;
-    }
-    return field;
 }
 function getCellScoreAnt(cell, ant) {
     if (!cell.canAddAnt())
@@ -298,7 +285,7 @@ function getBestCell(field, x, y, ant, scoreFunction) {
         var ny = n % 3;
         var rx = nx - 1 + x;
         var ry = ny - 1 + y;
-        if (rx < 0 || rx >= fieldWidth || ry < 0 || ry >= fieldHeight) {
+        if (rx < 0 || rx >= config.fieldWidth || ry < 0 || ry >= config.fieldHeight) {
             continue;
         }
         var cell = field[rx][ry];
@@ -333,7 +320,7 @@ function minimisationAlgorithm(field, x, y, minToNest) {
         var ny = n % 3;
         var rx = nx - 1 + x;
         var ry = ny - 1 + y;
-        if (rx < 0 || rx >= fieldWidth || ry < 0 || ry >= fieldHeight) {
+        if (rx < 0 || rx >= config.fieldWidth || ry < 0 || ry >= config.fieldHeight) {
             continue;
         }
         var cell = field[rx][ry];
@@ -449,13 +436,13 @@ function updateField() {
     randomField = randomizeArray(randomField);
     for (var i = 0; i < randomField.length; i++) {
         var n = randomField[i];
-        var x = Math.floor(n / fieldWidth);
-        var y = n % fieldWidth;
+        var y = Math.floor(n / config.fieldWidth);
+        var x = n % config.fieldWidth;
         transition(field, x, y);
     }
     // reset moved flag
-    for (var i = 0; i < fieldWidth; i++) {
-        for (var j = 0; j < fieldHeight; j++) {
+    for (var i = 0; i < config.fieldWidth; i++) {
+        for (var j = 0; j < config.fieldHeight; j++) {
             if (field[i][j] != null) {
                 field[i][j].setMoved(false);
                 field[i][j].decreasePheromone();
@@ -466,12 +453,12 @@ function updateField() {
 function drawClearField() {
     // draw water
     ctx.fillStyle = config.groundColor;
-    ctx.fillRect(0, 0, fieldWidth * pixelSize, fieldHeight * pixelSize);
+    ctx.fillRect(0, 0, config.fieldWidth * pixelSize, config.fieldHeight * pixelSize);
 }
 function drawField() {
     ctx.font = pixelSize / 2 + "px Courier New";
-    for (var i = 0; i < fieldWidth; i++) {
-        for (var j = 0; j < fieldHeight; j++) {
+    for (var i = 0; i < config.fieldWidth; i++) {
+        for (var j = 0; j < config.fieldHeight; j++) {
             ctx.fillStyle = field[i][j].color;
             ctx.fillRect(i * pixelSize, j * pixelSize, pixelSize, pixelSize);
             if (field[i][j].toFoodPheromone) {
@@ -485,51 +472,17 @@ function drawField() {
         }
     }
 }
-function getValueFromHMTLInput(id) {
-    var input = document.getElementById(id);
-    if (input == null)
-        return null;
-    if (input.type == "checkbox")
-        return input.checked;
-    else if (input.type == "number")
-        return input.valueAsNumber;
-    else
-        return input.value;
-}
-function setHtmlInputValue(id, val) {
-    var input = document.getElementById(id);
-    if (input != null) {
-        if (input.type == "checkbox")
-            input.checked = val == '1' ? true : false;
-        else
-            input.value = val;
-    }
-}
-// fill the configuration inputs on the html page
-function fillHtmlInputs() {
-    Object.keys(config).forEach(function (key, index) {
-        setHtmlInputValue(key, config[key]);
-    });
-}
-function readConfigurationValues() {
-    Object.keys(config).forEach(function (key, index) {
-        var val = getValueFromHMTLInput(key);
-        if (val != null) {
-            config[key] = val;
-        }
-    });
-}
 function changeFps() {
     config.fps = getValueFromHMTLInput('fps');
     setHtmlInputValue('fpsNumber', config.fps);
 }
 function restoreDefaultConfig() {
     config = JSON.parse(JSON.stringify(default_config));
-    fillHtmlInputs();
+    fillHtmlInputs(config);
 }
 function startSimulation() {
     pauseFlag = false;
-    readConfigurationValues();
+    readConfigurationValues(config);
     init();
     initRandomValues(field);
     startCount++;
@@ -554,7 +507,7 @@ var startButton;
 var pauseButton;
 var resumeButton;
 window.onload = function () {
-    fillHtmlInputs();
+    fillHtmlInputs(config);
     startButton = document.getElementById("btn-start-simulation");
     pauseButton = document.getElementById("btn-pause-simulation");
     resumeButton = document.getElementById("btn-resume-simulation");

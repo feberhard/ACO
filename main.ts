@@ -11,14 +11,10 @@
 
 
 // variables
-// var minimisationAlgorithmEnabled = true;
-var fieldWidth = 20;
-var fieldHeight = fieldWidth;
-var pixelSize = 500 / fieldWidth;
+var pixelSize = 25;
 var field: Cell[][];
 var randomField: number[];
-var randomNeighbour: number[];
-var colorArray: string[][][];
+var colorArray: string[][][]; // [ants][food][antDirection]
 
 var canvas: HTMLCanvasElement;
 var ctx: CanvasRenderingContext2D;
@@ -50,9 +46,11 @@ var default_config = {
 
     // general
     fps: 100,
-    minimisationAlgorithmEnabled: true
-    // maxCellSize: 1, // max number of ants per cell
-    // leavePheromoneAmout: 50
+    minimisationAlgorithmEnabled: true,
+    fieldWidth: 20,
+    fieldHeight: 20,
+    canvasSize: 800, // width and height of the larger side of the canvas, smaller canvas side and pixelsize depend on this
+    seperatePheromoneView: true,
 };
 
 var config = JSON.parse(JSON.stringify(default_config));
@@ -78,7 +76,7 @@ class Cell {
 
     get color(): string {
         if (this.maxAnts == 0) {
-            return config.obstacleColor; 
+            return config.obstacleColor;
         }
         if (this.nest) {
             return config.nestColor;
@@ -219,7 +217,7 @@ function gameloop(currentStartCount) {
 
         drawClearField();
         drawField();
-        
+
         updateStatistics();
     }, 1000 / config.fps);
 }
@@ -238,30 +236,28 @@ function resetStatistics() {
 }
 
 function init() {
-    field = new Array(fieldWidth);
+    pixelSize = Math.min(config.canvasSize / config.fieldWidth, config.canvasSize / config.fieldHeight);
 
-    for (var i = 0; i < fieldWidth; i++) {
-        field[i] = new Array(fieldHeight);
-        for (var j = 0; j < fieldHeight; j++) {
+    canvas = <HTMLCanvasElement>document.getElementById("my-canvas");
+    ctx = canvas.getContext("2d");
+    canvas.width = config.fieldWidth * pixelSize;
+    canvas.height = config.fieldHeight * pixelSize;
+    canvas.style.width = canvas.width + "px";
+    canvas.style.height = canvas.height + "px";
+
+    field = new Array(config.fieldWidth);
+
+    for (var i = 0; i < config.fieldWidth; i++) {
+        field[i] = new Array(config.fieldHeight);
+        for (var j = 0; j < config.fieldHeight; j++) {
             field[i][j] = new Cell(i, j, config.maxAnts);
         }
     }
 
-    randomField = new Array(fieldWidth * fieldHeight);
-    for (var i = 0; i < fieldWidth * fieldHeight; i++) {
+    randomField = new Array(config.fieldWidth * config.fieldHeight);
+    for (var i = 0; i < config.fieldWidth * config.fieldHeight; i++) {
         randomField[i] = i;
     }
-    //     0 1 2
-    //     _____
-    // 0 | 0 1 2
-    // 1 | 3 4 5
-    // 2 | 6 7 8
-    randomNeighbour = [1, 3, 4, 5, 7];
-
-    canvas = <HTMLCanvasElement>document.getElementById("my-canvas");
-    ctx = canvas.getContext("2d");
-    canvas.width = fieldWidth * pixelSize;
-    canvas.height = fieldHeight * pixelSize;
 
     initColors();
 }
@@ -294,8 +290,8 @@ function init() {
 function initRandomValues(field: Cell[][]) {
     var count = 0;
     while (count < config.nests) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
+        var x = Math.floor(Math.random() * config.fieldWidth);
+        var y = Math.floor(Math.random() * config.fieldHeight);
 
         if (field[x][y].canAddObstacle()) {
             field[x][y].setNest();
@@ -309,8 +305,8 @@ function initRandomValues(field: Cell[][]) {
 
     count = 0;
     while (count < config.foodSources) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
+        var x = Math.floor(Math.random() * config.fieldWidth);
+        var y = Math.floor(Math.random() * config.fieldHeight);
 
         if (field[x][y].canAddObstacle()) {
             field[x][y].addFood();
@@ -320,25 +316,14 @@ function initRandomValues(field: Cell[][]) {
 
     count = 0;
     while (count < config.obstacles) {
-        var x = Math.floor(Math.random() * fieldWidth);
-        var y = Math.floor(Math.random() * fieldHeight);
+        var x = Math.floor(Math.random() * config.fieldWidth);
+        var y = Math.floor(Math.random() * config.fieldHeight);
 
         if (field[x][y].canAddObstacle()) {
             field[x][y].maxAnts = 0;
             count++;
         }
     }
-}
-
-function randomizeArray(field: any[]) {
-    // Fisher-Yates shuffle https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-    for (var i = 0; i < field.length; i++) {
-        var j = Math.round(Math.random() * i);
-        var temp = field[i];
-        field[i] = field[j];
-        field[j] = temp;
-    }
-    return field;
 }
 
 function getCellScoreAnt(cell: Cell, ant: Ant) {
@@ -366,7 +351,7 @@ function getBestCell(field: Cell[][], x: number, y: number, ant: Ant, scoreFunct
     // 1 | 3 4 5
     // 2 | 6 7 8
     // var neighbourCells = [1, 3, 5, 7]; // top, left, right, bottom
-    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8]; 
+    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8];
     neighbourCells = randomizeArray(neighbourCells);
 
     var neighbours = [];
@@ -380,7 +365,7 @@ function getBestCell(field: Cell[][], x: number, y: number, ant: Ant, scoreFunct
         var rx = nx - 1 + x;
         var ry = ny - 1 + y;
 
-        if (rx < 0 || rx >= fieldWidth || ry < 0 || ry >= fieldHeight) {
+        if (rx < 0 || rx >= config.fieldWidth || ry < 0 || ry >= config.fieldHeight) {
             continue;
         }
 
@@ -411,10 +396,10 @@ function getBestCellAnt(field: Cell[][], x: number, y: number, ant: Ant) {
     return getBestCell(field, x, y, ant, this.getCellScoreAnt);
 }
 
-function minimisationAlgorithm(field: Cell[][], x: number, y: number,minToNest: boolean){
+function minimisationAlgorithm(field: Cell[][], x: number, y: number, minToNest: boolean) {
     var cell = field[x][y];
 
-    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8]; 
+    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8];
     var neighbours = [];
     neighbours.pop()
 
@@ -426,12 +411,12 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number,minToNest: 
         var rx = nx - 1 + x;
         var ry = ny - 1 + y;
 
-        if (rx < 0 || rx >= fieldWidth || ry < 0 || ry >= fieldHeight) {
+        if (rx < 0 || rx >= config.fieldWidth || ry < 0 || ry >= config.fieldHeight) {
             continue;
         }
 
         var cell = field[rx][ry];
-        
+
 
         neighbours.push(cell);
     }
@@ -439,69 +424,69 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number,minToNest: 
     //var toSpread : number = cell.toNestPheromone*1/100;
     var toSpread = 1;
 
-    if(minToNest)
-        if(cell.toNestPheromone - toSpread<=0)
+    if (minToNest)
+        if (cell.toNestPheromone - toSpread <= 0)
             return;
         else
-            cell.toNestPheromone-=toSpread;
+            cell.toNestPheromone -= toSpread;
     else
-        if(cell.toFoodPheromone - toSpread<=0)
+        if (cell.toFoodPheromone - toSpread <= 0)
             return;
         else
-            cell.toFoodPheromone-=toSpread;
+            cell.toFoodPheromone -= toSpread;
 
 
     var eliminated = true;
 
-    while(eliminated){
-        eliminated=false;
-        var av=0;
+    while (eliminated) {
+        eliminated = false;
+        var av = 0;
         neighbours.forEach(element => {
-            if(minToNest)
-                av+=element.toNestPheromone;
-            else    
-                av+=element.toFoodPheromone;
+            if (minToNest)
+                av += element.toNestPheromone;
+            else
+                av += element.toFoodPheromone;
         });
-        av+=toSpread;
-        av/=neighbours.length;
-        for(i = 0;i<neighbours.length;i++){
-            if(minToNest){
-                if(neighbours[i].toNestPheromone>av){
-                    eliminated=true;
+        av += toSpread;
+        av /= neighbours.length;
+        for (i = 0; i < neighbours.length; i++) {
+            if (minToNest) {
+                if (neighbours[i].toNestPheromone > av) {
+                    eliminated = true;
                     neighbours.splice(i);
-                    i--;                     
+                    i--;
                 }
             }
-            else{
-                if(neighbours[i].toFoodPheromone>av){
-                    eliminated=true;
+            else {
+                if (neighbours[i].toFoodPheromone > av) {
+                    eliminated = true;
                     neighbours.splice(i);
-                    i--;                     
+                    i--;
                 }
             }
 
         }
     }
-    if(neighbours.length<=0)
-        return ;
+    if (neighbours.length <= 0)
+        return;
     var av_q = 0
     neighbours.forEach(element => {
-        if(minToNest)
-            av_q+=element.toNestPheromone;
+        if (minToNest)
+            av_q += element.toNestPheromone;
         else
-            av_q+=element.toFoodPheromone;
+            av_q += element.toFoodPheromone;
     });
     av_q += toSpread;
-    av_q /=neighbours.length;
+    av_q /= neighbours.length;
 
     neighbours.forEach(element => {
-        if(minToNest){
-            var f= av_q- element.toNestPheromone;
-            element.toNestPheromone+=Math.abs(f);
+        if (minToNest) {
+            var f = av_q - element.toNestPheromone;
+            element.toNestPheromone += Math.abs(f);
         }
-        else{
-            var f= av_q- element.toFoodPheromone;
-            element.toFoodPheromone+=Math.abs(f);
+        else {
+            var f = av_q - element.toFoodPheromone;
+            element.toFoodPheromone += Math.abs(f);
         }
     });
 
@@ -510,9 +495,9 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number,minToNest: 
 function transition(field: Cell[][], x: number, y: number) {
     var cell = field[x][y];
 
-    if(config.minimisationAlgorithmEnabled){
-        minimisationAlgorithm(field,x,y,true);
-        minimisationAlgorithm(field,x,y,false);
+    if (config.minimisationAlgorithmEnabled) {
+        minimisationAlgorithm(field, x, y, true);
+        minimisationAlgorithm(field, x, y, false);
     }
 
     for (var a = 0; a < cell.ants.length; a++) {
@@ -563,15 +548,15 @@ function updateField() {
 
     for (var i = 0; i < randomField.length; i++) { // iterate randomly over the field
         var n = randomField[i];
-        var x = Math.floor(n / fieldWidth);
-        var y = n % fieldWidth;
+        var y = Math.floor(n / config.fieldWidth);
+        var x = n % config.fieldWidth;
 
         transition(field, x, y);
     }
 
     // reset moved flag
-    for (var i = 0; i < fieldWidth; i++) {
-        for (var j = 0; j < fieldHeight; j++) {
+    for (var i = 0; i < config.fieldWidth; i++) {
+        for (var j = 0; j < config.fieldHeight; j++) {
             if (field[i][j] != null) {
                 field[i][j].setMoved(false);
                 field[i][j].decreasePheromone();
@@ -583,14 +568,14 @@ function updateField() {
 function drawClearField() {
     // draw water
     ctx.fillStyle = config.groundColor;
-    ctx.fillRect(0, 0, fieldWidth * pixelSize, fieldHeight * pixelSize);
+    ctx.fillRect(0, 0, config.fieldWidth * pixelSize, config.fieldHeight * pixelSize);
 }
 
 function drawField() {
     ctx.font = pixelSize / 2 + "px Courier New";
 
-    for (var i = 0; i < fieldWidth; i++) {
-        for (var j = 0; j < fieldHeight; j++) {
+    for (var i = 0; i < config.fieldWidth; i++) {
+        for (var j = 0; j < config.fieldHeight; j++) {
             ctx.fillStyle = field[i][j].color;
 
             ctx.fillRect(i * pixelSize, j * pixelSize, pixelSize, pixelSize);
@@ -607,46 +592,6 @@ function drawField() {
     }
 }
 
-function getValueFromHMTLInput(id: string): boolean | number | string {
-    var input: HTMLInputElement = <HTMLInputElement>document.getElementById(id);
-    if (input == null)
-        return null;
-
-    if (input.type == "checkbox")
-        return input.checked;
-    else if (input.type == "number")
-        return input.valueAsNumber;
-    else
-        return input.value;
-}
-
-function setHtmlInputValue(id: string, val) {
-    var input: HTMLInputElement = <HTMLInputElement>document.getElementById(id);
-    if (input != null) {
-        if (input.type == "checkbox")
-            input.checked = val == '1' ? true : false;
-        else
-            input.value = val;
-    }
-}
-
-// fill the configuration inputs on the html page
-function fillHtmlInputs() {
-    Object.keys(config).forEach(function (key, index) {
-        setHtmlInputValue(key, config[key]);
-    });
-}
-
-function readConfigurationValues() {
-    Object.keys(config).forEach(function (key, index) {
-        var val = getValueFromHMTLInput(key);
-
-        if (val != null) {
-            config[key] = val;
-        }
-    });
-}
-
 function changeFps() {
     config.fps = <number>getValueFromHMTLInput('fps');
     setHtmlInputValue('fpsNumber', config.fps);
@@ -654,12 +599,12 @@ function changeFps() {
 
 function restoreDefaultConfig() {
     config = JSON.parse(JSON.stringify(default_config));
-    fillHtmlInputs();
+    fillHtmlInputs(config);
 }
 
 function startSimulation() {
     pauseFlag = false;
-    readConfigurationValues();
+    readConfigurationValues(config);
     init();
     initRandomValues(field);
     startCount++;
@@ -691,7 +636,7 @@ var pauseButton: HTMLButtonElement;
 var resumeButton: HTMLButtonElement;
 
 window.onload = function () {
-    fillHtmlInputs();
+    fillHtmlInputs(config);
 
     startButton = <HTMLButtonElement>document.getElementById("btn-start-simulation");
     pauseButton = <HTMLButtonElement>document.getElementById("btn-pause-simulation");
