@@ -598,7 +598,7 @@ function drawField() {
 
             if (config.seperatePheromoneView) { // seperatePheromoneView
                 if (cell.toFoodPheromone > 0) {
-                    var toFoodColorValue = Math.round((cell.toFoodPheromone / config.maxPheromone) * 0xff);
+                    var toFoodColorValue = Math.round((cell.toFoodPheromone / config.maxPheromone) * 200) + 55; // skip to dark values
                     ctx.fillStyle = "rgba(0, " + toFoodColorValue + ", 0, 1.0)";
                     ctx.fillRect(i * pixelSize + offsetX, j * pixelSize, pixelSize, pixelSize);
 
@@ -606,7 +606,7 @@ function drawField() {
                     ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize + offsetX, (j) * pixelSize + 0.6 * pixelSize);
                 }
                 if (cell.toNestPheromone > 0) {
-                    var toNestColorValue = Math.round((cell.toNestPheromone / config.maxPheromone) * 0xff);
+                    var toNestColorValue = Math.round((cell.toNestPheromone / config.maxPheromone) * 200) + 55;// skip to dark values
                     ctx.fillStyle = "rgba(" + toNestColorValue + ", 0, 0, 1.0)";
                     ctx.fillRect(i * pixelSize, j * pixelSize + offsetY, pixelSize, pixelSize);
 
