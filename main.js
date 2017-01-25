@@ -22,6 +22,8 @@ var default_config = {
     antToNestColor: "#CCCC00",
     nestColor: "#FF0000",
     obstacleColor: "#0000FF",
+    ToNestPheromoneColor: "#FFDDDD",
+    ToFoodPheromoneColor: "#DDFFDD",
     // ant
     antPopulation: 20,
     initialPheremoneStrength: 300,
@@ -36,7 +38,7 @@ var default_config = {
     obstacles: 20,
     // general
     fps: 100,
-    minimisationAlgorithmEnabled: true,
+    minimisationAlgorithmEnabled: false,
     fieldWidth: 20,
     fieldHeight: 20,
     canvasSize: 800,
@@ -451,25 +453,80 @@ function updateField() {
     }
 }
 function drawClearField() {
-    // draw water
+    // draw ground
     ctx.fillStyle = config.groundColor;
-    ctx.fillRect(0, 0, config.fieldWidth * pixelSize, config.fieldHeight * pixelSize);
+    var ps = config.seperatePheromoneView ? pixelSize / 2 : pixelSize;
+    ctx.fillRect(0, 0, config.fieldWidth * ps, config.fieldHeight * ps);
+    if (config.seperatePheromoneView) {
+        ctx.fillRect(config.fieldWidth * ps, 0, config.fieldWidth * ps, config.fieldHeight * ps);
+        ctx.fillRect(0, config.fieldHeight * ps, config.fieldWidth * ps, config.fieldHeight * ps);
+    }
 }
 function drawField() {
+    var savedPixelSize = pixelSize;
+    var offsetX, offsetY;
+    if (config.seperatePheromoneView) {
+        pixelSize = pixelSize / 2;
+        offsetX = config.fieldWidth * pixelSize;
+        offsetY = config.fieldHeight * pixelSize;
+    }
     ctx.font = pixelSize / 2 + "px Courier New";
     for (var i = 0; i < config.fieldWidth; i++) {
         for (var j = 0; j < config.fieldHeight; j++) {
-            ctx.fillStyle = field[i][j].color;
+            var cell = field[i][j];
+            var cellColor = cell.color;
+            ctx.fillStyle = cellColor;
             ctx.fillRect(i * pixelSize, j * pixelSize, pixelSize, pixelSize);
-            if (field[i][j].toFoodPheromone) {
-                ctx.fillStyle = "#DDFFDD";
-                ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize, (j) * pixelSize + pixelSize);
+            if (config.seperatePheromoneView) {
+                if (cell.toFoodPheromone > 0) {
+                    var toFoodColorValue = Math.round((cell.toFoodPheromone / config.maxPheromone) * 0xff);
+                    ctx.fillStyle = "rgba(0, " + toFoodColorValue + ", 0, 1.0)";
+                    ctx.fillRect(i * pixelSize + offsetX, j * pixelSize, pixelSize, pixelSize);
+                    ctx.fillStyle = "#000000";
+                    ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize + offsetX, (j) * pixelSize + 0.6 * pixelSize);
+                }
+                if (cell.toNestPheromone > 0) {
+                    var toNestColorValue = Math.round((cell.toNestPheromone / config.maxPheromone) * 0xff);
+                    ctx.fillStyle = "rgba(" + toNestColorValue + ", 0, 0, 1.0)";
+                    ctx.fillRect(i * pixelSize, j * pixelSize + offsetY, pixelSize, pixelSize);
+                    ctx.fillStyle = "#000000";
+                    ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.6 * pixelSize + offsetY);
+                }
+                if (cell.ants.length == 0 || cell.food > 0 || cell.nest) {
+                    ctx.fillStyle = cellColor;
+                    ctx.fillRect(i * pixelSize + offsetX, j * pixelSize, pixelSize, pixelSize);
+                    ctx.fillRect(i * pixelSize, j * pixelSize + offsetY, pixelSize, pixelSize);
+                }
             }
-            if (field[i][j].toNestPheromone) {
-                ctx.fillStyle = "#FFDDDD";
-                ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
+            else {
+                if (field[i][j].toFoodPheromone > 0) {
+                    ctx.fillStyle = config.ToFoodPheromoneColor;
+                    ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize, (j) * pixelSize + pixelSize);
+                }
+                if (field[i][j].toNestPheromone > 0) {
+                    ctx.fillStyle = config.ToNestPheromoneColor;
+                    ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
+                }
             }
         }
+    }
+    if (config.seperatePheromoneView) {
+        ctx.fillStyle = "#000000";
+        var lineWidth = pixelSize / 4;
+        ctx.lineWidth = lineWidth;
+        var lineOffset = lineWidth / 2;
+        ctx.beginPath();
+        ctx.moveTo(offsetX + lineOffset, 0);
+        ctx.lineTo(offsetX + lineOffset, offsetY + lineWidth);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, offsetY + lineOffset);
+        ctx.lineTo(offsetX + lineWidth, offsetY + lineOffset);
+        ctx.stroke();
+        ctx.font = pixelSize * 2 + "px Helvetica";
+        ctx.fillText("← To Nest", offsetX + pixelSize, offsetY * 1.6);
+        ctx.fillText("↑ To Food", offsetX * 1.25, offsetY * 1.2);
+        pixelSize = savedPixelSize;
     }
 }
 function changeFps() {
