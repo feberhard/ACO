@@ -613,7 +613,7 @@ function drawField() {
                     ctx.fillStyle = "#000000";
                     ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.6 * pixelSize + offsetY);
                 }
-                if (cell.ants.length == 0 || cell.food > 0 || cell.nest) {
+                if (cell.ants.length > 0 || cell.food > 0 || cell.nest == true || cell.maxAnts == 0) {
                     ctx.fillStyle = cellColor;
                     ctx.fillRect(i * pixelSize + offsetX, j * pixelSize, pixelSize, pixelSize);
                     ctx.fillRect(i * pixelSize, j * pixelSize + offsetY, pixelSize, pixelSize);
@@ -648,7 +648,7 @@ function drawField() {
         ctx.lineTo(offsetX + lineWidth, offsetY + lineOffset);
         ctx.stroke();
 
-        ctx.font = pixelSize * 2 + "px Helvetica";
+        ctx.font = "48px Helvetica";
         ctx.fillText("← To Nest", offsetX + pixelSize, offsetY * 1.6);
         ctx.fillText("↑ To Food", offsetX * 1.25, offsetY * 1.2);
 
