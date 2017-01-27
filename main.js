@@ -17,10 +17,11 @@ var ctx;
 var default_config = {
     // colors
     groundColor: "#A08556",
-    foodColor: "#246D25",
+    foodColor: "#00CC00",
+    // foodColor: "#246D25", // green
     antToFoodColor: "#000000",
     antToNestColor: "#CCCC00",
-    nestColor: "#FF0000",
+    nestColor: "#DD0000",
     obstacleColor: "#0000FF",
     ToNestPheromoneColor: "#FFDDDD",
     ToFoodPheromoneColor: "#DDFFDD",
@@ -479,15 +480,19 @@ function drawField() {
             ctx.fillRect(i * pixelSize, j * pixelSize, pixelSize, pixelSize);
             if (config.seperatePheromoneView) {
                 if (cell.toFoodPheromone > 0) {
-                    var toFoodColorValue = Math.round((cell.toFoodPheromone / config.maxPheromone) * 200) + 55; // skip to dark values
-                    ctx.fillStyle = "rgba(0, " + toFoodColorValue + ", 0, 1.0)";
+                    // var toFoodColorValue = Math.round((cell.toFoodPheromone / config.maxPheromone) * 200) + 55; // skip to dark values
+                    // ctx.fillStyle = "rgba(0, " + toFoodColorValue + ", 0, 1.0)";
+                    var toFoodColorPercent = cell.toFoodPheromone / config.maxPheromone;
+                    ctx.fillStyle = "rgba(0, 120, 0, " + toFoodColorPercent + ")";
                     ctx.fillRect(i * pixelSize + offsetX, j * pixelSize, pixelSize, pixelSize);
                     ctx.fillStyle = "#000000";
                     ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize + offsetX, (j) * pixelSize + 0.6 * pixelSize);
                 }
                 if (cell.toNestPheromone > 0) {
-                    var toNestColorValue = Math.round((cell.toNestPheromone / config.maxPheromone) * 200) + 55; // skip to dark values
-                    ctx.fillStyle = "rgba(" + toNestColorValue + ", 0, 0, 1.0)";
+                    // var toNestColorValue = Math.round((cell.toNestPheromone / config.maxPheromone) * 200) + 55;// skip to dark values
+                    // ctx.fillStyle = "rgba(" + toNestColorValue + ", 0, 0, 1.0)";
+                    var toNestColorPercent = cell.toNestPheromone / config.maxPheromone;
+                    ctx.fillStyle = "rgba(120, 0, 0, " + toNestColorPercent + ")";
                     ctx.fillRect(i * pixelSize, j * pixelSize + offsetY, pixelSize, pixelSize);
                     ctx.fillStyle = "#000000";
                     ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.6 * pixelSize + offsetY);
