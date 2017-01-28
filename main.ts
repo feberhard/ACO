@@ -2,7 +2,7 @@
  * //==============================================\\
  * || Project: Ant Colony Optimization             ||
  * || Authors: Eberhard Felix, Dorfmeister Daniel, ||
- * ||          De Rosis Alessandro                 ||
+ * ||          De Rosis Alessandro Francesco       ||
  * || Date:    05.12.2016                          ||
  * \\==============================================// 
  */
@@ -33,11 +33,12 @@ var default_config = {
 
     // ant
     antPopulation: 20,
-    initialPheremoneStrength: 300,
+    initialPheromoneStrength: 300,
 
     // food
     foodSources: 1,
     maxFood: 200,
+    minDistanceToNest: 1,
 
     // nest
     nests: 1,
@@ -286,34 +287,69 @@ function init() {
 
 
 //     for (var i = 0; i < config.antPopulation; i++) {
-//         field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheremoneStrength));
+//         field[fieldWidth - Math.round(fieldWidth / 4)][fieldHeight - Math.round(fieldWidth / 4)].addAnt(new Ant(config.initialPheromoneStrength));
 //     }
 // }
 
+function calcMinDistance(foodSource: [number, number], nests: Array<[number, number]>) {
+    var minDistance = Number.MAX_VALUE;
+    nests.forEach(function(nest) {
+        minDistance = Math.min(minDistance,
+            // Manhattan distance
+            Math.abs(foodSource[0] - nest[0]) + Math.abs(foodSource[1] - nest[1]));
+    });
+    return minDistance;
+}
+
 function initRandomValues(field: Cell[][]) {
+    const maxDistanceToNest = config.fieldHeight + config.fieldWidth;
+    if (config.minDistanceToNest > maxDistanceToNest) {
+        alert("Reset 'min. distance to nest' to max. allowed value (" + maxDistanceToNest + ")");
+        config.minDistanceToNest = maxDistanceToNest;
+        setHtmlInputValue('minDistanceToNest', config.minDistanceToNest);
+    }
+
+    var maxX = config.fieldWidth;
+    var maxY = config.fieldHeight;
+    if (config.minDistanceToNest > maxDistanceToNest / 2 && config.nests == 1) {
+        maxX = config.fieldWidth - config.minDistanceToNest * config.fieldWidth / maxDistanceToNest;
+        maxY = config.fieldHeight - config.minDistanceToNest * config.fieldHeight / maxDistanceToNest;
+    }
+
     var count = 0;
+    var nests = new Array<[number, number]>(config.nests);
     while (count < config.nests) {
-        var x = Math.floor(Math.random() * config.fieldWidth);
-        var y = Math.floor(Math.random() * config.fieldHeight);
+        var x = Math.floor(Math.random() * maxX);
+        var y = Math.floor(Math.random() * maxY);
 
         if (field[x][y].canAddObstacle()) {
             field[x][y].setNest();
+            nests.push([x, y]);
 
             for (var i = 0; i < config.antPopulation; i++) {
-                field[x][y].addAnt(new Ant(config.initialPheremoneStrength));
+                field[x][y].addAnt(new Ant(config.initialPheromoneStrength));
             }
             count++;
         }
     }
 
     count = 0;
+    var tries = 0;
+    const maxTries = 100000;
+
     while (count < config.foodSources) {
         var x = Math.floor(Math.random() * config.fieldWidth);
         var y = Math.floor(Math.random() * config.fieldHeight);
+        tries++;
 
-        if (field[x][y].canAddObstacle()) {
+        if (field[x][y].canAddObstacle() && calcMinDistance([x, y], nests) >= config.minDistanceToNest || tries > maxTries) {
+            if (tries > maxTries) {
+                alert("Couldn't find a solution for 'min. distance to nest = " + config.minDistanceToNest + "'");
+            }
+
             field[x][y].addFood();
             count++;
+            tries = 0;
         }
     }
 
@@ -327,6 +363,8 @@ function initRandomValues(field: Cell[][]) {
             count++;
         }
     }
+
+    return true;
 }
 
 function getCellScoreAnt(cell: Cell, ant: Ant) {
@@ -427,17 +465,15 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number, minToNest:
     //var toSpread : number = cell.toNestPheromone*1/100;
     var toSpread = 1;
 
-    if (minToNest)
+    if (minToNest) {
         if (cell.toNestPheromone - toSpread <= 0)
             return;
-        else
-            cell.toNestPheromone -= toSpread;
-    else
+        cell.toNestPheromone -= toSpread;
+    } else {
         if (cell.toFoodPheromone - toSpread <= 0)
             return;
-        else
-            cell.toFoodPheromone -= toSpread;
-
+        cell.toFoodPheromone -= toSpread;
+    }
 
     var eliminated = true;
 
@@ -522,8 +558,8 @@ function transition(field: Cell[][], x: number, y: number) {
                         ant.direction = Direction.toNest;
                         bestCell.takeFood();
                         ant.hasFood = true;
-                        ant.pheromoneStrength = Math.max(config.initialPheremoneStrength, ant.pheromoneStrength);
-                        //ant.pheromoneStrength = config.initialPheremoneStrength;
+                        ant.pheromoneStrength = Math.max(config.initialPheromoneStrength, ant.pheromoneStrength);
+                        //ant.pheromoneStrength = config.initialPheromoneStrength;
 
                         statistics.foodInSources--;
                         statistics.antsWithFood++;
@@ -533,7 +569,7 @@ function transition(field: Cell[][], x: number, y: number) {
                     if (bestCell.nest && ant.hasFood) {
                         ant.direction = Direction.toFood;
                         ant.hasFood = false;
-                        ant.pheromoneStrength = config.initialPheremoneStrength;
+                        ant.pheromoneStrength = config.initialPheromoneStrength;
 
                         statistics.foodInNests++;
                         statistics.antsWithFood--;
