@@ -51,6 +51,8 @@ var default_config = {
     // general
     fps: 100,
     minimisationAlgorithmEnabled: false,
+    minimisationSpreadValue: 1,
+    minimisationSpreadPercentage: 0,
     fieldWidth: 20,
     fieldHeight: 20,
     canvasSize: 800, // width and height of the larger side of the canvas, smaller canvas side and pixelsize depend on this
@@ -293,7 +295,7 @@ function init() {
 
 function calcMinDistance(foodSource: [number, number], nests: Array<[number, number]>) {
     var minDistance = Number.MAX_VALUE;
-    nests.forEach(function(nest) {
+    nests.forEach(function (nest) {
         minDistance = Math.min(minDistance,
             // Manhattan distance
             Math.abs(foodSource[0] - nest[0]) + Math.abs(foodSource[1] - nest[1]));
@@ -440,7 +442,7 @@ function getBestCellAnt(field: Cell[][], x: number, y: number, ant: Ant) {
 function minimisationAlgorithm(field: Cell[][], x: number, y: number, minToNest: boolean) {
     var cell = field[x][y];
 
-    var neighbourCells = [0, 1, 2, 3, 5, 6, 7, 8];
+    var neighbourCells = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     var neighbours = [];
     neighbours.pop()
 
@@ -456,50 +458,48 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number, minToNest:
             continue;
         }
 
-        var cell = field[rx][ry];
-
-
-        neighbours.push(cell);
+        neighbours.push(field[rx][ry]);
     }
 
-    //var toSpread : number = cell.toNestPheromone*1/100;
-    var toSpread = 1;
+    var toSpread = config.minimisationSpreadValue;
 
     if (minToNest) {
+        toSpread += cell.toNestPheromone * config.minimisationSpreadPercentage / 100;
         if (cell.toNestPheromone - toSpread <= 0)
             return;
         cell.toNestPheromone -= toSpread;
     } else {
+        toSpread += cell.toFoodPheromone * config.minimisationSpreadPercentage / 100;
         if (cell.toFoodPheromone - toSpread <= 0)
             return;
         cell.toFoodPheromone -= toSpread;
     }
 
     var eliminated = true;
-
+    var av_q = 0;
     while (eliminated) {
         eliminated = false;
-        var av = 0;
+        av_q = 0;
         neighbours.forEach(element => {
             if (minToNest)
-                av += element.toNestPheromone;
+                av_q += element.toNestPheromone;
             else
-                av += element.toFoodPheromone;
+                av_q += element.toFoodPheromone;
         });
-        av += toSpread;
-        av /= neighbours.length;
+        av_q += toSpread;
+        av_q /= neighbours.length;
         for (i = 0; i < neighbours.length; i++) {
             if (minToNest) {
-                if (neighbours[i].toNestPheromone > av) {
+                if (neighbours[i].toNestPheromone > av_q) {
                     eliminated = true;
-                    neighbours.splice(i);
+                    neighbours.splice(i, 1);
                     i--;
                 }
             }
             else {
-                if (neighbours[i].toFoodPheromone > av) {
+                if (neighbours[i].toFoodPheromone > av_q) {
                     eliminated = true;
-                    neighbours.splice(i);
+                    neighbours.splice(i, 1);
                     i--;
                 }
             }
@@ -508,15 +508,6 @@ function minimisationAlgorithm(field: Cell[][], x: number, y: number, minToNest:
     }
     if (neighbours.length <= 0)
         return;
-    var av_q = 0
-    neighbours.forEach(element => {
-        if (minToNest)
-            av_q += element.toNestPheromone;
-        else
-            av_q += element.toFoodPheromone;
-    });
-    av_q += toSpread;
-    av_q /= neighbours.length;
 
     neighbours.forEach(element => {
         if (minToNest) {
@@ -642,7 +633,7 @@ function drawField() {
                     ctx.fillRect(i * pixelSize + offsetX, j * pixelSize, pixelSize, pixelSize);
 
                     ctx.fillStyle = "#000000";
-                    ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize + offsetX, (j) * pixelSize + 0.6 * pixelSize);
+                    ctx.fillText("" + Math.ceil(field[i][j].toFoodPheromone), (i) * pixelSize + offsetX, (j) * pixelSize + 0.6 * pixelSize);
                 }
                 if (cell.toNestPheromone > 0) {
                     // var toNestColorValue = Math.round((cell.toNestPheromone / config.maxPheromone) * 200) + 55;// skip to dark values
@@ -652,7 +643,7 @@ function drawField() {
                     ctx.fillRect(i * pixelSize, j * pixelSize + offsetY, pixelSize, pixelSize);
 
                     ctx.fillStyle = "#000000";
-                    ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.6 * pixelSize + offsetY);
+                    ctx.fillText("" + Math.ceil(field[i][j].toNestPheromone), (i) * pixelSize, (j) * pixelSize + 0.6 * pixelSize + offsetY);
                 }
                 if (cell.ants.length > 0 || cell.food > 0 || cell.nest == true || cell.maxAnts == 0) {
                     ctx.fillStyle = cellColor;
@@ -663,11 +654,11 @@ function drawField() {
             else { // no seperatePheromoneView
                 if (field[i][j].toFoodPheromone > 0) {
                     ctx.fillStyle = config.ToFoodPheromoneColor;
-                    ctx.fillText("" + field[i][j].toFoodPheromone, (i) * pixelSize, (j) * pixelSize + pixelSize);
+                    ctx.fillText("" + Math.ceil(field[i][j].toFoodPheromone), (i) * pixelSize, (j) * pixelSize + pixelSize);
                 }
                 if (field[i][j].toNestPheromone > 0) {
                     ctx.fillStyle = config.ToNestPheromoneColor;
-                    ctx.fillText("" + field[i][j].toNestPheromone, (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
+                    ctx.fillText("" + Math.ceil(field[i][j].toNestPheromone), (i) * pixelSize, (j) * pixelSize + 0.5 * pixelSize);
                 }
             }
         }
