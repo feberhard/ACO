@@ -57,6 +57,7 @@ var default_config = {
     fieldHeight: 20,
     canvasSize: 800, // width and height of the larger side of the canvas, smaller canvas side and pixelsize depend on this
     seperatePheromoneView: true,
+    squareCellScore: true
 };
 
 var config = JSON.parse(JSON.stringify(default_config));
@@ -375,12 +376,14 @@ function getCellScoreAnt(cell: Cell, ant: Ant) {
 
     if (ant.direction === Direction.toNest) {
         if (cell.nest) {
-            return Number.MAX_VALUE;
+            // return Number.MAX_VALUE;
+            return Number.MAX_SAFE_INTEGER;
         }
         return cell.toNestPheromone;
     } else {
         if (cell.food) {
-            return Number.MAX_VALUE;
+            return Number.MAX_SAFE_INTEGER;
+            // return Number.MAX_VALUE;
         }
         return cell.toFoodPheromone;
     }
@@ -419,9 +422,12 @@ function getBestCell(field: Cell[][], x: number, y: number, ant: Ant, scoreFunct
         neighbourScores.push(score);
     }
 
-    neighbourScores.forEach((a, index) => neighbourScores[index] = a + 1);
-    var scoreSum = neighbourScores.reduce((a, b) => a + b, 0);
-    neighbourScores.forEach((a, index) => neighbourScores[index] = a / scoreSum);
+    neighbourScores.forEach((a, index) => neighbourScores[index] = a + 1); // add + 1
+    if (config.squareCellScore) {
+        neighbourScores.forEach((a, index) => neighbourScores[index] = a * a); // square it
+    }
+    var scoreSum = neighbourScores.reduce((a, b) => a + b, 0); // sum them
+    neighbourScores.forEach((a, index) => neighbourScores[index] = a / scoreSum); // divide by sum
 
     var random = Math.random();
     var selectedIndex;
